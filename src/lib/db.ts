@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 import { connectToDatabase } from './mongodb';
 import { User, IUser, UserRole } from '@/models/User';
 import { ActivityLog, IActivityLog } from '@/models/ActivityLog';
@@ -33,11 +34,13 @@ export interface ActivityRecord {
   timestamp: string;
 }
 
+const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 const DATA_DIR = path.join(process.cwd(), '.data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const LOGS_FILE = path.join(DATA_DIR, 'activityLogs.json');
 
 function ensureDataDir() {
+  if (isProd) return; // Do not attempt filesystem writes in Vercel serverless
   if (!fs.existsSync(DATA_DIR)) {
     try {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -48,6 +51,7 @@ function ensureDataDir() {
 }
 
 function readLocalUsers(): UserRecord[] {
+  if (isProd) return [];
   ensureDataDir();
   if (!fs.existsSync(USERS_FILE)) return [];
   try {
@@ -59,15 +63,17 @@ function readLocalUsers(): UserRecord[] {
 }
 
 function writeLocalUsers(users: UserRecord[]) {
+  if (isProd) return;
   ensureDataDir();
   try {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
   } catch (e) {
-    // Ignore
+    // Ignore in serverless
   }
 }
 
 function readLocalLogs(): ActivityRecord[] {
+  if (isProd) return [];
   ensureDataDir();
   if (!fs.existsSync(LOGS_FILE)) return [];
   try {
@@ -79,16 +85,31 @@ function readLocalLogs(): ActivityRecord[] {
 }
 
 function writeLocalLogs(logs: ActivityRecord[]) {
+  if (isProd) return;
   ensureDataDir();
   try {
     fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2), 'utf-8');
   } catch (e) {
-    // Ignore
+    // Ignore in serverless
   }
 }
 
 /**
- * Seed default admin account if not already present
+ * Normalize an input phone number into pure digits for reliable querying
+ */
+export function normalizePhoneNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length > 10 && digits.startsWith('91')) {
+    return digits.slice(-10);
+  }
+  if (digits.length > 10 && digits.startsWith('0')) {
+    return digits.slice(-10);
+  }
+  return digits;
+}
+
+/**
+ * Optional seed admin helper (used for setup and automated testing)
  */
 export async function seedInitialAdmin(): Promise<void> {
   const existingAdmin = await findUserByIdentifier('admin@arka-ne.gov.in');
@@ -105,7 +126,7 @@ export async function seedInitialAdmin(): Promise<void> {
 }
 
 /**
- * Create a new user in MongoDB and synchronize with local fallback store
+ * Create a new user in MongoDB (with development offline fallback)
  */
 export async function createUser(data: {
   name: string;
@@ -114,62 +135,114 @@ export async function createUser(data: {
   passwordHash: string;
   role?: UserRole;
 }): Promise<UserRecord> {
-  const id = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const now = new Date().toISOString();
   const normalizedEmail = data.email.trim().toLowerCase();
+  const normalizedPhone = data.phone?.trim();
+  const role: UserRole = data.role || 'user';
+  const now = new Date();
 
-  const userRecord: UserRecord = {
-    id,
+  let mongoUser: UserRecord | null = null;
+  let mongoError: Error | null = null;
+
+  try {
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
+      const doc = await User.create({
+        name: data.name.trim(),
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        passwordHash: data.passwordHash,
+        role,
+        status: 'Active',
+        createdAt: now,
+      });
+
+      mongoUser = {
+        id: doc._id.toString(),
+        name: doc.name,
+        email: doc.email,
+        phone: doc.phone,
+        passwordHash: doc.passwordHash,
+        role: doc.role as UserRole,
+        status: doc.status as 'Active' | 'Disabled',
+        createdAt: doc.createdAt.toISOString(),
+        lastLogin: null,
+      };
+    }
+  } catch (err: any) {
+    mongoError = err;
+    console.error('[Database Error] Failed to create user in MongoDB:', err.message);
+  }
+
+  if (mongoUser) {
+    // Keep local sync in dev only
+    try {
+      const local = readLocalUsers();
+      local.push(mongoUser);
+      writeLocalUsers(local);
+    } catch (e) {
+      // Ignore
+    }
+    return mongoUser;
+  }
+
+  // In production, do not silently swallow MongoDB failure
+  if (isProd) {
+    throw new Error(
+      mongoError?.message || 'Database error: Unable to create user in production MongoDB database.'
+    );
+  }
+
+  // Development-only fallback
+  const fallbackUser: UserRecord = {
+    id: `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     name: data.name.trim(),
     email: normalizedEmail,
-    phone: data.phone?.trim(),
+    phone: normalizedPhone,
     passwordHash: data.passwordHash,
-    role: data.role || 'user',
+    role,
     status: 'Active',
-    createdAt: now,
+    createdAt: now.toISOString(),
     lastLogin: null,
   };
 
-  // Try MongoDB
-  try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
-      const doc = await User.create({
-        name: userRecord.name,
-        email: userRecord.email,
-        phone: userRecord.phone,
-        passwordHash: userRecord.passwordHash,
-        role: userRecord.role,
-        status: userRecord.status,
-      });
-      userRecord.id = doc._id.toString();
-    }
-  } catch (err) {
-    // MongoDB fallback
-  }
-
-  // Always sync local store
   const local = readLocalUsers();
-  local.push(userRecord);
+  local.push(fallbackUser);
   writeLocalUsers(local);
 
-  return userRecord;
+  return fallbackUser;
 }
 
 /**
- * Find user by email or phone
+ * Find user by email or phone with robust multi-format matching
  */
 export async function findUserByIdentifier(identifier: string): Promise<UserRecord | null> {
   if (!identifier) return null;
   const clean = identifier.trim().toLowerCase();
+  const digits = clean.replace(/\D/g, '');
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
 
-  // Try MongoDB
+  // 1. Primary: Query MongoDB
   try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
-      const doc = await User.findOne({
-        $or: [{ email: clean }, { phone: clean }],
-      }).lean();
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
+      const conditions: any[] = [
+        { email: clean },
+        { phone: clean },
+      ];
+
+      if (digits.length >= 7) {
+        conditions.push(
+          { phone: digits },
+          { phone: last10 },
+          { phone: `+91${last10}` },
+          { phone: `+91 ${last10}` },
+          { email: `${digits}@mobile.arka` },
+          { email: `${last10}@mobile.arka` }
+        );
+      }
+
+      const doc = await User.findOne({ $or: conditions }).lean();
+
       if (doc) {
         return {
           id: (doc as any)._id.toString(),
@@ -177,22 +250,30 @@ export async function findUserByIdentifier(identifier: string): Promise<UserReco
           email: (doc as any).email,
           phone: (doc as any).phone,
           passwordHash: (doc as any).passwordHash,
-          role: (doc as any).role,
-          status: (doc as any).status,
+          role: (doc as any).role as UserRole,
+          status: (doc as any).status as 'Active' | 'Disabled',
           createdAt: (doc as any).createdAt?.toISOString() || new Date().toISOString(),
           lastLogin: (doc as any).lastLogin ? (doc as any).lastLogin.toISOString() : null,
         };
       }
     }
-  } catch (err) {
-    // Fall back to local file
+  } catch (err: any) {
+    console.error('[Database Error] Failed to lookup user in MongoDB:', err.message);
+    if (isProd) {
+      throw new Error(
+        `Database lookup failed: ${err?.message || 'Unable to connect to MongoDB'}`
+      );
+    }
   }
 
+  // 2. Development-only fallback
   const local = readLocalUsers();
   const found = local.find(
     (u) =>
       u.email.toLowerCase() === clean ||
-      (u.phone && u.phone.toLowerCase() === clean)
+      (u.phone && u.phone.toLowerCase() === clean) ||
+      (digits.length >= 7 && u.phone && u.phone.replace(/\D/g, '').includes(last10)) ||
+      (digits.length >= 7 && u.email && u.email.includes(last10))
   );
 
   return found || null;
@@ -205,8 +286,8 @@ export async function findUserById(id: string): Promise<UserRecord | null> {
   if (!id) return null;
 
   try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
       const doc = await User.findById(id).lean();
       if (doc) {
         return {
@@ -215,15 +296,16 @@ export async function findUserById(id: string): Promise<UserRecord | null> {
           email: (doc as any).email,
           phone: (doc as any).phone,
           passwordHash: (doc as any).passwordHash,
-          role: (doc as any).role,
-          status: (doc as any).status,
+          role: (doc as any).role as UserRole,
+          status: (doc as any).status as 'Active' | 'Disabled',
           createdAt: (doc as any).createdAt?.toISOString() || new Date().toISOString(),
           lastLogin: (doc as any).lastLogin ? (doc as any).lastLogin.toISOString() : null,
         };
       }
     }
-  } catch (err) {
-    // Fall back to local file
+  } catch (err: any) {
+    console.error('[Database Error] Failed to find user by ID in MongoDB:', err.message);
+    if (isProd) throw err;
   }
 
   const local = readLocalUsers();
@@ -236,26 +318,41 @@ export async function findUserById(id: string): Promise<UserRecord | null> {
 export async function updateUserLastLogin(identifier: string): Promise<void> {
   const now = new Date();
   const clean = identifier.trim().toLowerCase();
+  const digits = clean.replace(/\D/g, '');
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
 
   try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
-      await User.updateOne(
-        { $or: [{ email: clean }, { phone: clean }] },
-        { $set: { lastLogin: now } }
-      );
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
+      const conditions: any[] = [
+        { email: clean },
+        { phone: clean },
+      ];
+      if (digits.length >= 7) {
+        conditions.push(
+          { phone: digits },
+          { phone: last10 },
+          { email: `${digits}@mobile.arka` },
+          { email: `${last10}@mobile.arka` }
+        );
+      }
+      await User.updateOne({ $or: conditions }, { $set: { lastLogin: now } });
     }
-  } catch (err) {
-    // Fall back
+  } catch (err: any) {
+    console.warn('[Database Warning] Could not update lastLogin:', err.message);
   }
 
-  const local = readLocalUsers();
-  const idx = local.findIndex(
-    (u) => u.email.toLowerCase() === clean || (u.phone && u.phone.toLowerCase() === clean)
-  );
-  if (idx !== -1) {
-    local[idx].lastLogin = now.toISOString();
-    writeLocalUsers(local);
+  try {
+    const local = readLocalUsers();
+    const idx = local.findIndex(
+      (u) => u.email.toLowerCase() === clean || (u.phone && u.phone.toLowerCase() === clean)
+    );
+    if (idx !== -1) {
+      local[idx].lastLogin = now.toISOString();
+      writeLocalUsers(local);
+    }
+  } catch (e) {
+    // Ignore in serverless
   }
 }
 
@@ -264,8 +361,8 @@ export async function updateUserLastLogin(identifier: string): Promise<void> {
  */
 export async function getAllUsers(): Promise<Omit<UserRecord, 'passwordHash'>[]> {
   try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
       const docs = await User.find().sort({ createdAt: -1 }).lean();
       if (docs && docs.length > 0) {
         return docs.map((d: any) => ({
@@ -273,15 +370,19 @@ export async function getAllUsers(): Promise<Omit<UserRecord, 'passwordHash'>[]>
           name: d.name,
           email: d.email,
           phone: d.phone,
-          role: d.role,
+          role: d.role as UserRole,
           status: d.status,
           createdAt: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString(),
           lastLogin: d.lastLogin ? new Date(d.lastLogin).toISOString() : null,
         }));
       }
+      return [];
     }
-  } catch (err) {
-    // Fall back
+  } catch (err: any) {
+    console.error('[Database Error] Failed to retrieve users from MongoDB:', err.message);
+    if (isProd) {
+      throw err;
+    }
   }
 
   const local = readLocalUsers();
@@ -318,9 +419,9 @@ export async function recordActivity(data: {
   };
 
   try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
-      await ActivityLog.create({
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
+      const doc = await ActivityLog.create({
         userId: record.userId,
         name: record.name,
         email: record.email,
@@ -332,16 +433,20 @@ export async function recordActivity(data: {
         userAgent: record.userAgent,
         timestamp: new Date(record.timestamp),
       });
+      record.id = doc._id.toString();
     }
-  } catch (err) {
-    // Fall back
+  } catch (err: any) {
+    console.warn('[Database Warning] Could not persist activity log in MongoDB:', err.message);
   }
 
-  const local = readLocalLogs();
-  local.unshift(record);
-  // Keep last 500 logs locally
-  if (local.length > 500) local.length = 500;
-  writeLocalLogs(local);
+  try {
+    const local = readLocalLogs();
+    local.unshift(record);
+    if (local.length > 500) local.length = 500;
+    writeLocalLogs(local);
+  } catch (e) {
+    // Ignore in serverless
+  }
 
   return record;
 }
@@ -353,11 +458,9 @@ export async function getActivityLogs(filters?: {
   status?: string;
   timeLimit?: string;
 }): Promise<ActivityRecord[]> {
-  let logs: ActivityRecord[] = [];
-
   try {
-    const mongooseConn = await connectToDatabase();
-    if (mongooseConn) {
+    await connectToDatabase();
+    if (mongoose.connection.readyState === 1) {
       const query: any = {};
       if (filters?.status && filters.status !== 'all') {
         query.status = filters.status.toUpperCase();
@@ -368,9 +471,11 @@ export async function getActivityLogs(filters?: {
         query.timestamp = { $gte: startOfDay };
       }
 
-      const docs = await ActivityLog.find(query).sort({ timestamp: -1 }).limit(100).lean();
+      const limit = filters?.timeLimit === 'recent' ? 20 : 100;
+      const docs = await ActivityLog.find(query).sort({ timestamp: -1 }).limit(limit).lean();
+
       if (docs && docs.length > 0) {
-        logs = docs.map((d: any) => ({
+        return docs.map((d: any) => ({
           id: d._id.toString(),
           userId: d.userId,
           name: d.name,
@@ -383,20 +488,21 @@ export async function getActivityLogs(filters?: {
           userAgent: d.userAgent,
           timestamp: d.timestamp ? new Date(d.timestamp).toISOString() : new Date().toISOString(),
         }));
-        return logs;
       }
+      return [];
     }
-  } catch (err) {
-    // Fall back
+  } catch (err: any) {
+    console.error('[Database Error] Failed to retrieve logs from MongoDB:', err.message);
+    if (isProd) {
+      throw err;
+    }
   }
 
-  logs = readLocalLogs();
-
+  let logs = readLocalLogs();
   if (filters?.status && filters.status !== 'all') {
     const targetStatus = filters.status.toUpperCase();
     logs = logs.filter((l) => l.status === targetStatus);
   }
-
   if (filters?.timeLimit === 'today') {
     const todayStr = new Date().toISOString().slice(0, 10);
     logs = logs.filter((l) => l.timestamp.slice(0, 10) === todayStr);

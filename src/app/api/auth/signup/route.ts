@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { findUserByIdentifier, createUser, recordActivity, seedInitialAdmin, UserRole } from '@/lib/db';
+import { findUserByIdentifier, createUser, recordActivity, UserRole } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
-    await seedInitialAdmin();
-
     const body = await req.json();
     const { name, identifier, phone, password, confirmPassword, role } = body;
 
@@ -60,10 +58,24 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Prevent duplicate registration
-    const existing = await findUserByIdentifier(cleanIdentifier);
+    let existing;
+    try {
+      existing = await findUserByIdentifier(cleanIdentifier);
+    } catch (dbErr: any) {
+      console.error('[Signup Error] Database lookup failed:', dbErr?.message || dbErr);
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Database connection error. Please verify MONGODB_URI or DATABASE_URL in your Vercel project environment variables.',
+        },
+        { status: 503 }
+      );
+    }
+
     if (existing) {
       return NextResponse.json(
-        { success: false, message: 'Email or mobile already registered.' },
+        { success: false, message: 'Email or mobile number is already registered. Please log in.' },
         { status: 409 }
       );
     }
@@ -73,19 +85,36 @@ export async function POST(req: NextRequest) {
 
     const assignedRole: UserRole = role === 'admin' ? 'admin' : role === 'officer' ? 'officer' : 'user';
 
-    // 7. Store user
-    const newUser = await createUser({
-      name: name.trim(),
-      email: isEmail ? cleanIdentifier : `${cleanIdentifier.replace(/\D/g, '')}@mobile.arka`,
-      phone: isMobile ? cleanIdentifier : phone?.trim(),
-      passwordHash,
-      role: assignedRole,
-    });
+    // 7. Store user in database
+    let newUser;
+    try {
+      const pureDigits = cleanIdentifier.replace(/\D/g, '');
+      const userPhone = isMobile ? cleanIdentifier : phone?.trim();
+      const userEmail = isEmail ? cleanIdentifier : `${pureDigits.slice(-10)}@mobile.arka`;
+
+      newUser = await createUser({
+        name: name.trim(),
+        email: userEmail,
+        phone: userPhone,
+        passwordHash,
+        role: assignedRole,
+      });
+    } catch (createErr: any) {
+      console.error('[Signup Error] Failed to persist user in database:', createErr?.message || createErr);
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Failed to save account to database. Please check your database connection or try again.',
+        },
+        { status: 503 }
+      );
+    }
 
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('remote-addr') || '127.0.0.1';
     const userAgent = req.headers.get('user-agent') || 'Browser';
 
-    // 8. Record signup activity
+    // 8. Record signup activity in activity logs
     await recordActivity({
       userId: newUser.id,
       name: newUser.name,
@@ -100,7 +129,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: 'Account created successfully. Please login.',
+        message: 'Account created successfully. Please login with your credentials.',
         user: {
           id: newUser.id,
           name: newUser.name,
@@ -111,6 +140,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
+    console.error('[Signup Route Exception]:', error?.message || error);
     return NextResponse.json(
       { success: false, message: 'An error occurred during registration. Please try again.' },
       { status: 500 }

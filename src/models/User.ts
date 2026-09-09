@@ -10,7 +10,7 @@ export interface IUser extends Document {
   role: UserRole;
   status: 'Active' | 'Disabled';
   createdAt: Date;
-  lastLogin?: Date;
+  lastLogin?: Date | null;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -24,7 +24,7 @@ const UserSchema = new Schema<IUser>(
     createdAt: { type: Date, default: Date.now },
     lastLogin: { type: Date },
   },
-  { timestamps: true }
+  { timestamps: true, bufferCommands: false }
 );
 
 export const User: Model<IUser> =

@@ -26,7 +26,7 @@ const ActivityLogSchema = new Schema<IActivityLog>(
     userAgent: { type: String },
     timestamp: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true, bufferCommands: false }
 );
 
 export const ActivityLog: Model<IActivityLog> =

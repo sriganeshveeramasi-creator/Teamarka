@@ -4,14 +4,11 @@ import {
   findUserByIdentifier,
   updateUserLastLogin,
   recordActivity,
-  seedInitialAdmin,
 } from '@/lib/db';
 import { signSessionToken, AUTH_COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    await seedInitialAdmin();
-
     const body = await req.json();
     const { identifier, password } = body;
 
@@ -28,10 +25,23 @@ export async function POST(req: NextRequest) {
 
     const cleanIdentifier = identifier.trim().toLowerCase();
 
-    // 2. Find user
-    const user = await findUserByIdentifier(cleanIdentifier);
+    // 2. Find user in database
+    let user;
+    try {
+      user = await findUserByIdentifier(cleanIdentifier);
+    } catch (dbErr: any) {
+      console.error('[Login Error] Database lookup failed:', dbErr?.message || dbErr);
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Database connection error. Please verify MONGODB_URI or DATABASE_URL in your Vercel project environment variables.',
+        },
+        { status: 503 }
+      );
+    }
 
-    // If user not found
+    // 3. If user not found
     if (!user) {
       await recordActivity({
         email: cleanIdentifier,
@@ -49,7 +59,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Verify password hash
+    // 4. Verify password hash
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
@@ -71,10 +81,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Update lastLogin
+    // 5. Update lastLogin timestamp
     await updateUserLastLogin(user.email);
 
-    // 5. Record successful login
+    // 6. Record successful login in activity logs
     await recordActivity({
       userId: user.id,
       name: user.name,
@@ -86,7 +96,7 @@ export async function POST(req: NextRequest) {
       userAgent,
     });
 
-    // 6. Create secure JWT session token
+    // 7. Create secure JWT session token
     const token = signSessionToken({
       userId: user.id,
       name: user.name,
@@ -94,7 +104,7 @@ export async function POST(req: NextRequest) {
       role: user.role,
     });
 
-    // 7. Create response and set HTTP-only cookie
+    // 8. Create response and set HTTP-only cookie
     const response = NextResponse.json(
       {
         success: true,
@@ -123,6 +133,7 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error: any) {
+    console.error('[Login Route Exception]:', error?.message || error);
     return NextResponse.json(
       { success: false, message: 'An unexpected authentication error occurred.' },
       { status: 500 }

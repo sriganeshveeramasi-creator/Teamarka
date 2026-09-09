@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { NORTHEAST_STATES, VEHICLE_OPTIONS } from '@/data/northeastData';
-import NortheastInteractiveMap from '@/components/map/NortheastInteractiveMap';
+import GoogleStyleNavMap from '@/components/map/GoogleStyleNavMap';
 import StatusBadge from '@/components/common/StatusBadge';
 import {
   Navigation,
@@ -370,14 +370,13 @@ export default function RouteOptimizationView() {
             )}
           </div>
 
-          {/* Interactive Map Visual */}
-          <div className="bg-white p-3 rounded-3xl border border-slate-200 shadow-sm">
-            <NortheastInteractiveMap
-              highlightRoute={true}
-              showAlternative={showAltRoute}
-              heightClass="h-[340px] sm:h-[400px]"
-            />
-          </div>
+          {/* Google Maps-Style Live Navigation Map */}
+          <GoogleStyleNavMap
+            routeResult={currentRouteResult}
+            showAlternativeRoute={showAltRoute}
+            onToggleAlternative={() => setShowAltRoute(!showAltRoute)}
+            heightClass="h-[460px] sm:h-[540px]"
+          />
         </div>
       </div>
     </div>

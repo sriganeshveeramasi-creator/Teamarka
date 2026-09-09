@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   NORTHEAST_STATES,
   TOLL_GATES,
@@ -30,6 +30,12 @@ interface NortheastInteractiveMapProps {
   interactive?: boolean;
   heightClass?: string;
   zoomLevel?: 'state' | 'district' | 'local';
+  externalShowTraffic?: boolean;
+  externalShowTolls?: boolean;
+  externalShowSignals?: boolean;
+  externalShowRisks?: boolean;
+  externalShowFacilities?: boolean;
+  focusedPoint?: { x: number; y: number; label?: string };
 }
 
 export default function NortheastInteractiveMap({
@@ -40,15 +46,41 @@ export default function NortheastInteractiveMap({
   interactive = true,
   heightClass = "h-[450px] md:h-[540px]",
   zoomLevel: propZoomLevel,
+  externalShowTraffic,
+  externalShowTolls,
+  externalShowSignals,
+  externalShowRisks,
+  externalShowFacilities,
+  focusedPoint,
 }: NortheastInteractiveMapProps) {
   const [zoom, setZoom] = useState<'state' | 'district' | 'local'>(propZoomLevel || 'district');
   const [selectedCity, setSelectedCity] = useState<CityNode | null>(null);
-  const [showTraffic, setShowTraffic] = useState<boolean>(true);
-  const [showTolls, setShowTolls] = useState<boolean>(true);
-  const [showSignals, setShowSignals] = useState<boolean>(true);
-  const [showRisks, setShowRisks] = useState<boolean>(true);
-  const [showFacilities, setShowFacilities] = useState<boolean>(false);
+  const [showTraffic, setShowTraffic] = useState<boolean>(externalShowTraffic !== undefined ? externalShowTraffic : true);
+  const [showTolls, setShowTolls] = useState<boolean>(externalShowTolls !== undefined ? externalShowTolls : true);
+  const [showSignals, setShowSignals] = useState<boolean>(externalShowSignals !== undefined ? externalShowSignals : true);
+  const [showRisks, setShowRisks] = useState<boolean>(externalShowRisks !== undefined ? externalShowRisks : true);
+  const [showFacilities, setShowFacilities] = useState<boolean>(externalShowFacilities !== undefined ? externalShowFacilities : false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (externalShowTraffic !== undefined) setShowTraffic(externalShowTraffic);
+  }, [externalShowTraffic]);
+
+  useEffect(() => {
+    if (externalShowTolls !== undefined) setShowTolls(externalShowTolls);
+  }, [externalShowTolls]);
+
+  useEffect(() => {
+    if (externalShowSignals !== undefined) setShowSignals(externalShowSignals);
+  }, [externalShowSignals]);
+
+  useEffect(() => {
+    if (externalShowRisks !== undefined) setShowRisks(externalShowRisks);
+  }, [externalShowRisks]);
+
+  useEffect(() => {
+    if (externalShowFacilities !== undefined) setShowFacilities(externalShowFacilities);
+  }, [externalShowFacilities]);
 
   // Highway corridors
   const primaryRoute = HIGHWAY_ROUTES[0];
@@ -511,6 +543,48 @@ export default function NortheastInteractiveMap({
               textAnchor="middle"
             >
               🚛 {activeShipmentPoint.label || 'Active Fleet'}
+            </text>
+          </g>
+        )}
+
+        {/* Focused Facility / Location Pin */}
+        {focusedPoint && (
+          <g filter="url(#route-glow)">
+            <circle
+              cx={focusedPoint.x}
+              cy={focusedPoint.y}
+              r="14"
+              fill="#a855f7"
+              fillOpacity="0.4"
+              className="animate-ping"
+            />
+            <circle
+              cx={focusedPoint.x}
+              cy={focusedPoint.y}
+              r="7"
+              fill="#9333ea"
+              stroke="#ffffff"
+              strokeWidth="2"
+            />
+            <rect
+              x={focusedPoint.x - 55}
+              y={focusedPoint.y - 28}
+              width="110"
+              height="18"
+              rx="4"
+              fill="#581c87"
+              stroke="#d8b4fe"
+              strokeWidth="1"
+            />
+            <text
+              x={focusedPoint.x}
+              y={focusedPoint.y - 16}
+              fill="#ffffff"
+              fontSize="8.5"
+              fontWeight="bold"
+              textAnchor="middle"
+            >
+              📍 {focusedPoint.label || 'Focused Site'}
             </text>
           </g>
         )}

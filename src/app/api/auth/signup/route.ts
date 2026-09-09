@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { findUserByIdentifier, createUser, recordActivity, seedInitialAdmin } from '@/lib/db';
+import { findUserByIdentifier, createUser, recordActivity, seedInitialAdmin, UserRole } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,29 +24,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanIdentifier = identifier.trim().toLowerCase();
-
-    // 2. Validate email or mobile format
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanIdentifier);
-    const isMobile = /^(\+91[\-\s]?)?[6-9]\d{9}$/.test(cleanIdentifier.replace(/[\s\-]/g, ''));
-
-    if (!isEmail && !isMobile) {
+    if (!password) {
       return NextResponse.json(
-        { success: false, message: 'Please enter a valid email address or 10-digit Indian mobile number.' },
+        { success: false, message: 'Password is required.' },
         { status: 400 }
       );
     }
 
-    // 3. Password validation
-    if (!password || password.length < 6) {
+    // 2. Validate email or phone format
+    const cleanIdentifier = identifier.trim().toLowerCase();
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanIdentifier);
+    const isMobile = /^(\+91[\-\s]?)?[0]?(91)?[6789]\d{9}$/.test(cleanIdentifier.replace(/[\s\-]/g, ''));
+
+    if (!isEmail && !isMobile) {
+      return NextResponse.json(
+        { success: false, message: 'Please provide a valid email address or 10-digit mobile number.' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Validate password strength
+    if (password.length < 6) {
       return NextResponse.json(
         { success: false, message: 'Password must be at least 6 characters long.' },
         { status: 400 }
       );
     }
 
-    // 4. Password confirmation match
-    if (password !== confirmPassword) {
+    // 4. Confirm password match
+    if (confirmPassword && password !== confirmPassword) {
       return NextResponse.json(
         { success: false, message: 'Passwords do not match.' },
         { status: 400 }
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
     // 6. Secure Password Hashing
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const assignedRole: 'user' | 'admin' = role === 'admin' ? 'admin' : 'user';
+    const assignedRole: UserRole = role === 'admin' ? 'admin' : role === 'officer' ? 'officer' : 'user';
 
     // 7. Store user
     const newUser = await createUser({

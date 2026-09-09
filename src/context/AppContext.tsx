@@ -42,12 +42,14 @@ export interface RouteCalcResult {
   isAlternative: boolean;
 }
 
+export type UserRole = 'user' | 'officer' | 'admin';
+
 export interface UserProfile {
   id?: string;
   name: string;
   email: string;
   phone?: string;
-  role: 'user' | 'admin' | string;
+  role: UserRole | string;
   lastLogin?: string | null;
 }
 

@@ -2,8 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from './mongodb';
-import { User, IUser } from '@/models/User';
+import { User, IUser, UserRole } from '@/models/User';
 import { ActivityLog, IActivityLog } from '@/models/ActivityLog';
+
+export type { UserRole };
 
 export interface UserRecord {
   id: string;
@@ -11,7 +13,7 @@ export interface UserRecord {
   email: string;
   phone?: string;
   passwordHash: string;
-  role: 'user' | 'admin';
+  role: UserRole;
   status: 'Active' | 'Disabled';
   createdAt: string;
   lastLogin?: string | null;
@@ -110,7 +112,7 @@ export async function createUser(data: {
   email: string;
   phone?: string;
   passwordHash: string;
-  role?: 'user' | 'admin';
+  role?: UserRole;
 }): Promise<UserRecord> {
   const id = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const now = new Date().toISOString();

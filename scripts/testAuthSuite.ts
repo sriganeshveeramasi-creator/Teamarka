@@ -122,12 +122,13 @@ async function runTests() {
       userId: validUser.id,
       name: validUser.name,
       email: validUser.email,
-      role: validUser.role === 'admin' ? 'admin' : 'user',
+      role: validUser.role,
     });
     assert('Test 9a: JWT session token is properly signed', typeof token === 'string' && token.split('.').length === 3);
 
     const verifiedSession = verifySessionToken(token);
     assert('Test 9b: JWT session token is verified and decoded correctly', !!verifiedSession && verifiedSession.userId === validUser.id);
+    assert('Test 9c: Officer role is correctly preserved in session token', !!verifiedSession && verifiedSession.role === 'officer');
   }
 
   // 10. Admin Audit & Data Privacy: Passwords NEVER Exposed

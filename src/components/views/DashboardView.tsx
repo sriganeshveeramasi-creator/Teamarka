@@ -78,6 +78,8 @@ export default function DashboardView() {
                 className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${
                   user?.role === 'admin'
                     ? 'bg-purple-50 text-purple-700 border-purple-200'
+                    : user?.role === 'officer'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 }`}
               >

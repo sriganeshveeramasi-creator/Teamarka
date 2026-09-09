@@ -3,11 +3,13 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'arka_sih_2026_super_secure_jwt_token_secret_key_848129712';
 export const AUTH_COOKIE_NAME = 'arka_session';
 
+export type UserRole = 'user' | 'officer' | 'admin';
+
 export interface SessionPayload {
   userId: string;
   name: string;
   email: string;
-  role: 'user' | 'admin';
+  role: UserRole;
 }
 
 /**

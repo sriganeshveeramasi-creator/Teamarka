@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useApp } from '@/context/AppContext';
+import { useApp, UserRole } from '@/context/AppContext';
 import {
   Eye,
   EyeOff,
@@ -28,7 +28,7 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'user' | 'admin'>('user');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('user');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -323,10 +323,11 @@ export default function LoginView() {
                 </label>
                 <select
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as 'user' | 'admin')}
+                  onChange={(e) => setSelectedRole(e.target.value as UserRole)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="user">Normal User (Logistics & Fleet Operator)</option>
+                  <option value="user">Normal User (Citizen / Standard Access)</option>
+                  <option value="officer">Logistics Officer (State Fleet & Transit Operations)</option>
                   <option value="admin">Administrator (System Governance & Audit)</option>
                 </select>
               </div>

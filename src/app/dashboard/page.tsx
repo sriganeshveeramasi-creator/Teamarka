@@ -1,5 +1,15 @@
-import { redirect } from 'next/navigation';
+"use client";
+
+import { useEffect } from 'react';
+import { useApp } from '@/context/AppContext';
+import DashboardView from '@/components/views/DashboardView';
 
 export default function DashboardPage() {
-  redirect('/?view=dashboard');
+  const { setActiveView } = useApp();
+
+  useEffect(() => {
+    setActiveView('dashboard');
+  }, [setActiveView]);
+
+  return <DashboardView />;
 }

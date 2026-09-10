@@ -65,10 +65,18 @@ export default function LoginView() {
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
         {/* Top Header with Color Gradient */}
         <div className="bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 p-6 text-white text-center relative">
-          <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md mx-auto flex items-center justify-center font-black text-2xl mb-2">
+          <div
+            className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md mx-auto flex items-center justify-center font-black text-2xl mb-2 shadow-inner border border-white/20 font-brand"
+            style={{ fontFamily: "'Outfit', 'Montserrat', sans-serif" }}
+          >
             A
           </div>
-          <h2 className="text-xl font-bold tracking-tight">TEAM ARKA</h2>
+          <h2
+            className="text-2xl sm:text-3xl font-black tracking-widest uppercase text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)] font-brand"
+            style={{ fontFamily: "'Outfit', 'Montserrat', sans-serif" }}
+          >
+            TEAM ARKA
+          </h2>
           <p className="text-xs text-cyan-100 font-medium mt-0.5">
             {t('appTagline')}
           </p>

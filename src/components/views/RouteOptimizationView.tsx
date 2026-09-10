@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function RouteOptimizationView() {
-  const { currentRouteResult, calculateRoute, setActiveView, t } = useApp();
+  const { currentRouteResult, calculateRoute, setActiveView, t, activeRoute } = useApp();
 
   const [sourceState, setSourceState] = useState<string>('Assam');
   const [sourceCity, setSourceCity] = useState<string>('Guwahati');
@@ -327,7 +327,8 @@ export default function RouteOptimizationView() {
             </div>
 
             {/* Alternative Route Toggle Button */}
-            <div className="pt-1 flex items-center justify-between">
+            {/* Action buttons */}
+            <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setShowAltRoute(!showAltRoute)}
@@ -340,13 +341,23 @@ export default function RouteOptimizationView() {
                 {showAltRoute ? '✕ Hide Alternative Route' : '🔀 Show Alternative Route (NH-37)'}
               </button>
 
-              <button
-                onClick={() => setActiveView('arka-assistant')}
-                className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
-              >
-                <span>Ask ARKA Assistant about this route</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setActiveView('accessibility')}
+                  className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors"
+                >
+                  <span>🏥 Corridor Facilities (10 km)</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setActiveView('arka-assistant')}
+                  className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <span>Ask Assistant</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Alternative Route Comparison card if active */}
@@ -375,6 +386,7 @@ export default function RouteOptimizationView() {
             <NortheastInteractiveMap
               highlightRoute={true}
               showAlternative={showAltRoute}
+              activeRouteGeometry={activeRoute.geometry}
               heightClass="h-[340px] sm:h-[400px]"
             />
           </div>

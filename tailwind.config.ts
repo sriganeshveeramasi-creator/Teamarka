@@ -8,6 +8,13 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        brand: ["var(--font-brand)", "Outfit", "Montserrat", "sans-serif"],
+        outfit: ["Outfit", "sans-serif"],
+        montserrat: ["Montserrat", "sans-serif"],
+        orbitron: ["Orbitron", "sans-serif"],
+        poppins: ["Poppins", "sans-serif"],
+      },
       colors: {
         arka: {
           blue: {

@@ -60,7 +60,7 @@ interface AppContextType {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
   isAuthenticated: boolean;
-  user: { name: string; email: string; role: string } | null;
+  user: { name: string; email: string; phone?: string; lastLogin?: string; role: string } | null;
   login: (identifier: string) => void;
   logout: () => void;
   language: Language;
@@ -118,7 +118,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeView, setActiveView] = useState<AppView>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string; phone?: string; lastLogin?: string; role: string } | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [emergencyMode, setEmergencyMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);

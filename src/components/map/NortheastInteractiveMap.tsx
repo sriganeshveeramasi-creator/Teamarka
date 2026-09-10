@@ -49,6 +49,12 @@ interface NortheastInteractiveMapProps {
   customRiskMarkers?: RiskIntelligenceAlert[];
   fitRouteGeometry?: boolean;
   onMapClick?: () => void;
+  externalShowTraffic?: boolean;
+  externalShowTolls?: boolean;
+  externalShowSignals?: boolean;
+  externalShowRisks?: boolean;
+  externalShowFacilities?: boolean;
+  focusedPoint?: { x: number; y: number; label?: string };
 }
 
 type MapType = 'roadmap' | 'satellite' | 'terrain';
@@ -79,6 +85,11 @@ export default function NortheastInteractiveMap({
   customRiskMarkers,
   fitRouteGeometry = false,
   onMapClick,
+  externalShowTraffic,
+  externalShowTolls,
+  externalShowSignals,
+  externalShowRisks,
+  externalShowFacilities,
 }: NortheastInteractiveMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -88,16 +99,30 @@ export default function NortheastInteractiveMap({
   const routesGroupRef = useRef<any>(null);
 
   const [mapType, setMapType] = useState<MapType>('roadmap');
-  const [showTraffic, setShowTraffic] = useState<boolean>(true);
-  const [showTolls, setShowTolls] = useState<boolean>(true);
-  const [showSignals, setShowSignals] = useState<boolean>(true);
-  const [showRisks, setShowRisks] = useState<boolean>(true);
-  const [showFacilities, setShowFacilities] = useState<boolean>(false);
+  const [showTraffic, setShowTraffic] = useState<boolean>(externalShowTraffic ?? true);
+  const [showTolls, setShowTolls] = useState<boolean>(externalShowTolls ?? true);
+  const [showSignals, setShowSignals] = useState<boolean>(externalShowSignals ?? true);
+  const [showRisks, setShowRisks] = useState<boolean>(externalShowRisks ?? true);
+  const [showFacilities, setShowFacilities] = useState<boolean>(externalShowFacilities ?? false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchFocused, setSearchFocused] = useState<boolean>(false);
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (externalShowTraffic !== undefined) setShowTraffic(externalShowTraffic);
+    if (externalShowTolls !== undefined) setShowTolls(externalShowTolls);
+    if (externalShowSignals !== undefined) setShowSignals(externalShowSignals);
+    if (externalShowRisks !== undefined) setShowRisks(externalShowRisks);
+    if (externalShowFacilities !== undefined) setShowFacilities(externalShowFacilities);
+  }, [
+    externalShowTraffic,
+    externalShowTolls,
+    externalShowSignals,
+    externalShowRisks,
+    externalShowFacilities,
+  ]);
 
   // All cities flattened with state reference
   const allCities = React.useMemo(() => {

@@ -51,8 +51,8 @@ export default function WeatherIntelligenceView() {
             <p className="text-sm font-medium text-cyan-100 mt-0.5">{selectedCity.condition}</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 bg-black/20 backdrop-blur-md p-3 rounded-2xl text-center text-xs">
-            <div className="p-2">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 bg-black/20 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl text-center text-xs w-full sm:w-auto">
+            <div className="p-1.5 sm:p-2">
               <Droplets className="w-5 h-5 mx-auto text-cyan-300 mb-1" />
               <p className="text-cyan-200">Precipitation</p>
               <p className="font-black text-sm">{selectedCity.rainMm} mm</p>

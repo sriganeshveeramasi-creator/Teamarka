@@ -771,7 +771,7 @@ export default function ArkaAiAssistantView() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder={isListening ? 'Listening to speech...' : 'Ask ARKA about routes, traffic, weather, risks, hospitals...'}
-                className="flex-1 px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all font-medium"
+                className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 bg-slate-50 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all font-medium"
               />
 
               {/* Send Button */}

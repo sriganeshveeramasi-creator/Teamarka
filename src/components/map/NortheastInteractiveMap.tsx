@@ -112,20 +112,20 @@ export default function NortheastInteractiveMap({
         </div>
 
         {/* Layer Controls */}
-        <div className="pointer-events-auto flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-700 text-xs shadow-sm">
+        <div className="pointer-events-auto flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-700 text-[11px] sm:text-xs shadow-sm overflow-x-auto no-scrollbar max-w-full">
           <button
             onClick={() => setShowTraffic(!showTraffic)}
-            className={`px-2 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
+            className={`px-2 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 shrink-0 ${
               showTraffic ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
             title="Toggle Traffic Density"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-300" />
-            Traffic
+            <span className="w-2 h-2 rounded-full bg-emerald-300 shrink-0" />
+            <span>Traffic</span>
           </button>
           <button
             onClick={() => setShowSignals(!showSignals)}
-            className={`px-2 py-1 rounded-lg transition-colors font-medium ${
+            className={`px-2 py-1 rounded-lg transition-colors font-medium shrink-0 ${
               showSignals ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
             title="Toggle Traffic Signals"
@@ -134,7 +134,7 @@ export default function NortheastInteractiveMap({
           </button>
           <button
             onClick={() => setShowTolls(!showTolls)}
-            className={`px-2 py-1 rounded-lg transition-colors font-medium ${
+            className={`px-2 py-1 rounded-lg transition-colors font-medium shrink-0 ${
               showTolls ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
             title="Toggle Toll Gates"
@@ -143,7 +143,7 @@ export default function NortheastInteractiveMap({
           </button>
           <button
             onClick={() => setShowRisks(!showRisks)}
-            className={`px-2 py-1 rounded-lg transition-colors font-medium ${
+            className={`px-2 py-1 rounded-lg transition-colors font-medium shrink-0 ${
               showRisks ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
             title="Toggle Risk Zones"
@@ -152,7 +152,7 @@ export default function NortheastInteractiveMap({
           </button>
           <button
             onClick={() => setShowFacilities(!showFacilities)}
-            className={`px-2 py-1 rounded-lg transition-colors font-medium ${
+            className={`px-2 py-1 rounded-lg transition-colors font-medium shrink-0 ${
               showFacilities ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
             title="Toggle Accessibility Services"
@@ -163,11 +163,11 @@ export default function NortheastInteractiveMap({
       </div>
 
       {/* Zoom Controls */}
-      <div className="absolute right-3 bottom-14 z-20 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700 shadow-md">
+      <div className="absolute right-2.5 sm:right-3 bottom-14 z-20 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 sm:p-1.5 rounded-xl border border-slate-700 shadow-md">
         <button
           onClick={() => setZoom(zoom === 'state' ? 'district' : 'local')}
           disabled={zoom === 'local'}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg disabled:opacity-30"
+          className="p-1.5 sm:p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg disabled:opacity-30 cursor-pointer"
           title="Zoom In"
         >
           <ZoomIn className="w-4 h-4" />
@@ -175,7 +175,7 @@ export default function NortheastInteractiveMap({
         <button
           onClick={() => setZoom(zoom === 'local' ? 'district' : 'state')}
           disabled={zoom === 'state'}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg disabled:opacity-30"
+          className="p-1.5 sm:p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg disabled:opacity-30 cursor-pointer"
           title="Zoom Out"
         >
           <ZoomOut className="w-4 h-4" />
@@ -183,19 +183,19 @@ export default function NortheastInteractiveMap({
       </div>
 
       {/* Traffic Legend Bar */}
-      <div className="absolute left-3 bottom-3 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700 text-xs shadow-sm">
-        <span className="font-semibold text-slate-300">Live Traffic:</span>
-        <div className="flex items-center gap-1">
-          <span className="w-3 h-2 rounded bg-emerald-500 inline-block" />
-          <span className="text-slate-300">Low (0-35%)</span>
+      <div className="absolute left-2.5 sm:left-3 bottom-2.5 sm:bottom-3 z-20 flex items-center gap-2 sm:gap-3 bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-slate-700 text-[10px] sm:text-xs shadow-sm max-w-[calc(100%-4rem)] overflow-x-auto no-scrollbar">
+        <span className="font-semibold text-slate-300 hidden xs:inline">Live:</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="w-2.5 h-2 rounded bg-emerald-500 inline-block" />
+          <span className="text-slate-300">0-35%</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-3 h-2 rounded bg-amber-500 inline-block" />
-          <span className="text-slate-300">Moderate (36-70%)</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="w-2.5 h-2 rounded bg-amber-500 inline-block" />
+          <span className="text-slate-300">36-70%</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-3 h-2 rounded bg-red-500 inline-block" />
-          <span className="text-slate-300">Heavy (&gt;70%)</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="w-2.5 h-2 rounded bg-red-500 inline-block" />
+          <span className="text-slate-300">&gt;70%</span>
         </div>
       </div>
 

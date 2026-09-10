@@ -42,7 +42,7 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 lg:hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 lg:hidden focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             <Menu className="w-6 h-6" />
@@ -145,7 +145,7 @@ export default function Navbar() {
             </button>
 
             {notifDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 z-50">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 z-50 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <span className="font-bold text-xs text-slate-900">Regional Alerts (3)</span>
                   <span className="text-[11px] text-blue-600 font-semibold cursor-pointer">Mark read</span>

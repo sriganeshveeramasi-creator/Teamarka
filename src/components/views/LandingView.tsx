@@ -71,7 +71,7 @@ export default function LandingView() {
             </div>
 
             {/* Quick Feature Highlights */}
-            <div className="grid grid-cols-3 gap-3 pt-4 max-w-lg mx-auto lg:mx-0">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-4 max-w-lg mx-auto lg:mx-0">
               <div className="p-3 bg-white/80 backdrop-blur-xs rounded-xl border border-blue-100 text-left">
                 <p className="text-xs text-slate-500 font-medium">Regional Coverage</p>
                 <p className="text-sm font-bold text-blue-700">8 NE States</p>

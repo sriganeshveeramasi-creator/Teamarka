@@ -327,20 +327,20 @@ export default function GoogleStyleNavMap({
         </div>
       ) : (
         /* Standby Top Search / Route Bar (Google Maps Style) */
-        <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2">
-          <div className="pointer-events-auto flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-md border border-slate-200 text-xs text-slate-800">
-            <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
-            <span className="font-bold text-slate-900">
+        <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 right-2.5 sm:right-3 z-20 flex flex-wrap items-center justify-between pointer-events-none gap-2">
+          <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-md border border-slate-200 text-[11px] sm:text-xs text-slate-800 max-w-full">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse shrink-0" />
+            <span className="font-bold text-slate-900 truncate">
               {routeResult.sourceCity} ➔ {routeResult.destCity}
             </span>
-            <span className="text-slate-400 font-normal">|</span>
-            <span className="font-semibold text-emerald-700">Fastest Route (NH-27)</span>
+            <span className="text-slate-400 font-normal hidden xs:inline">|</span>
+            <span className="font-semibold text-emerald-700 hidden xs:inline truncate">Fastest Route (NH-27)</span>
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur-md p-1 rounded-2xl shadow-md border border-slate-200">
+          <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur-md p-1 rounded-2xl shadow-md border border-slate-200 shrink-0">
             <button
               onClick={() => setMapType(mapType === 'map' ? 'satellite' : 'map')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 mapType === 'satellite'
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-700 hover:bg-slate-100'
@@ -741,21 +741,21 @@ export default function GoogleStyleNavMap({
               </p>
             </div>
 
-            {/* START NAVIGATION BUTTON */}
-            <div className="flex items-center gap-2">
+            {/* START NAVIGATION BUTTONS */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setShowStepsDrawer(true)}
-                className="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm transition-colors"
+                className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm transition-colors text-center cursor-pointer"
               >
-                Steps & Details
+                Steps
               </button>
 
               <button
                 onClick={handleStartNavigation}
-                className="px-6 py-3 rounded-2xl bg-[#1a73e8] hover:bg-[#1557bf] text-white font-black text-xs sm:text-sm shadow-md transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+                className="flex-2 sm:flex-initial px-4 sm:px-6 py-3 rounded-2xl bg-[#1a73e8] hover:bg-[#1557bf] text-white font-black text-xs sm:text-sm shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Navigation className="w-4 h-4 fill-current" />
-                <span>Start Navigation</span>
+                <Navigation className="w-4 h-4 fill-current shrink-0" />
+                <span className="truncate">Start Navigation</span>
               </button>
             </div>
           </div>

@@ -49,18 +49,18 @@ export default function EmergencyModeView() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handleBroadcastSOS}
               disabled={sosSent}
-              className="px-5 py-2.5 rounded-2xl bg-white hover:bg-red-50 text-red-700 font-black text-xs sm:text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              className="flex-1 xs:flex-initial px-5 py-2.5 rounded-2xl bg-white hover:bg-red-50 text-red-700 font-black text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
-              <Radio className="w-4 h-4 text-red-600 animate-ping" />
-              <span>{sosSent ? 'SOS BROADCAST DISPATCHED!' : 'BROADCAST SOS ALERT'}</span>
+              <Radio className="w-4 h-4 text-red-600 animate-ping shrink-0" />
+              <span className="truncate">{sosSent ? 'SOS BROADCAST DISPATCHED!' : 'BROADCAST SOS ALERT'}</span>
             </button>
             <button
               onClick={toggleEmergencyMode}
-              className="px-4 py-2.5 rounded-2xl bg-black/30 hover:bg-black/40 text-white font-bold text-xs sm:text-sm border border-white/20"
+              className="px-4 py-2.5 rounded-2xl bg-black/30 hover:bg-black/40 text-white font-bold text-xs sm:text-sm border border-white/20 text-center cursor-pointer"
             >
               Exit Emergency
             </button>

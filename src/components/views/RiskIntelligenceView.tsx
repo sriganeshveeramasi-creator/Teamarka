@@ -72,10 +72,10 @@ export default function RiskIntelligenceView() {
           <span className="text-xs font-bold text-slate-700">Filter Alerts:</span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs font-bold">
+        <div className="flex items-center gap-1.5 text-xs font-bold overflow-x-auto no-scrollbar max-w-full pb-0.5">
           <button
             onClick={() => setFilterSeverity('ALL')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
               filterSeverity === 'ALL'
                 ? 'bg-slate-900 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -85,7 +85,7 @@ export default function RiskIntelligenceView() {
           </button>
           <button
             onClick={() => setFilterSeverity('HIGH')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
               filterSeverity === 'HIGH'
                 ? 'bg-rose-600 text-white'
                 : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
@@ -95,7 +95,7 @@ export default function RiskIntelligenceView() {
           </button>
           <button
             onClick={() => setFilterSeverity('MEDIUM')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
               filterSeverity === 'MEDIUM'
                 ? 'bg-amber-600 text-white'
                 : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
@@ -105,7 +105,7 @@ export default function RiskIntelligenceView() {
           </button>
           <button
             onClick={() => setFilterSeverity('LOW')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
+            className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
               filterSeverity === 'LOW'
                 ? 'bg-emerald-600 text-white'
                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'

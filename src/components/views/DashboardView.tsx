@@ -124,17 +124,9 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {/* 6 Information Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
-        <StatCard
-          title={t('activeShipments')}
-          value="24"
-          subtitle="4 in mountain transit"
-          icon={Truck}
-          accentColor="blue"
-          badgeText="100% On-Grid"
-          onClick={() => setActiveView('tracking')}
-        />
+      {/* 4 Core Information Stat Cards: [Weather] [Traffic] [Shipments] [Risks] */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* 1. Weather */}
         <StatCard
           title={t('presentWeather')}
           value="26°C"
@@ -144,6 +136,7 @@ export default function DashboardView() {
           badgeText="Wet Track"
           onClick={() => setActiveView('weather')}
         />
+        {/* 2. Traffic */}
         <StatCard
           title={t('presentTraffic')}
           value="72%"
@@ -151,7 +144,19 @@ export default function DashboardView() {
           icon={Activity}
           accentColor="amber"
           badgeText="Moderate Congestion"
+          onClick={() => setActiveView('traffic')}
         />
+        {/* 3. Shipments */}
+        <StatCard
+          title={t('activeShipments')}
+          value="24"
+          subtitle="4 in mountain transit"
+          icon={Truck}
+          accentColor="blue"
+          badgeText="100% On-Grid"
+          onClick={() => setActiveView('tracking')}
+        />
+        {/* 4. Risks */}
         <StatCard
           title={t('activeRisks')}
           value="4"
@@ -161,21 +166,27 @@ export default function DashboardView() {
           badgeText="Action Required"
           onClick={() => setActiveView('risks')}
         />
+      </div>
+
+      {/* Secondary Efficiency Strip: ETA & Cost */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <StatCard
           title={t('averageETA')}
           value="4.2 hrs"
-          subtitle="Within 12m margin"
+          subtitle="Within 12m margin across hilly corridors"
           icon={Clock}
           accentColor="green"
           badgeText="94% Efficiency"
+          onClick={() => setActiveView('route-opt')}
         />
         <StatCard
           title={t('estimatedCost')}
           value="₹3,450"
-          subtitle="Avg fuel + tolls"
+          subtitle="Avg fuel + tolls optimized per transit"
           icon={IndianRupee}
           accentColor="purple"
           badgeText="Optimized"
+          onClick={() => setActiveView('route-opt')}
         />
       </div>
 

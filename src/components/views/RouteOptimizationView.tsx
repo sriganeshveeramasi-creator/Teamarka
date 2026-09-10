@@ -257,7 +257,7 @@ export default function RouteOptimizationView() {
             </div>
 
             {/* Metrics Breakdown Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <span className="text-slate-500 font-medium">Distance & ETA</span>
                 <p className="text-sm font-bold text-slate-900 mt-0.5">
@@ -327,11 +327,11 @@ export default function RouteOptimizationView() {
             </div>
 
             {/* Alternative Route Toggle Button */}
-            <div className="pt-1 flex items-center justify-between">
+            <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowAltRoute(!showAltRoute)}
-                className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                className={`text-xs font-bold px-3 py-2 rounded-xl border transition-all text-center ${
                   showAltRoute
                     ? 'bg-amber-500 text-white border-amber-500'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -342,7 +342,7 @@ export default function RouteOptimizationView() {
 
               <button
                 onClick={() => setActiveView('arka-assistant')}
-                className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                className="text-xs font-semibold text-blue-600 hover:underline flex items-center justify-center gap-1 py-1"
               >
                 <span>Ask ARKA Assistant about this route</span>
                 <ArrowRight className="w-3.5 h-3.5" />

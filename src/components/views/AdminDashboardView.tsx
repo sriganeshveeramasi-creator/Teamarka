@@ -172,7 +172,7 @@ export default function AdminDashboardView() {
       </div>
 
       {/* Admin Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveAdminTab('activity')}
           className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 ${
@@ -312,35 +312,73 @@ export default function AdminDashboardView() {
               <p className="text-slate-400 text-xs mt-1">Attempts will be logged here in real-time as users log in or fail authentication.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">User</th>
-                    <th className="py-2.5 px-3">Email / Mobile</th>
-                    <th className="py-2.5 px-3">Role</th>
-                    <th className="py-2.5 px-3">Login Time</th>
-                    <th className="py-2.5 px-3">Details</th>
-                    <th className="py-2.5 px-3">IP / Device</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-3">
-                        {log.status === 'SUCCESS' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            SUCCESS
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
-                            <XCircle className="w-3 h-3 text-rose-600" />
-                            FAILED
-                          </span>
-                        )}
-                      </td>
+            <>
+              {/* Mobile Stacked Cards (< 640px) */}
+              <div className="sm:hidden space-y-3">
+                {logs.map((log) => (
+                  <div key={log.id} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      {log.status === 'SUCCESS' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          SUCCESS
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                          <XCircle className="w-3 h-3 text-rose-600" />
+                          FAILED
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                        log.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {log.role || 'user'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{log.name || 'Anonymous User'}</p>
+                      <p className="text-[11px] font-mono text-slate-600 break-all">{log.email}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px] text-slate-500">
+                      <span>Login: {new Date(log.timestamp).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span className="truncate max-w-[120px] font-mono">{log.ip || '127.0.0.1'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= 640px) */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">User</th>
+                      <th className="py-2.5 px-3">Email / Mobile</th>
+                      <th className="py-2.5 px-3">Role</th>
+                      <th className="py-2.5 px-3">Login Time</th>
+                      <th className="py-2.5 px-3">Details</th>
+                      <th className="py-2.5 px-3">IP / Device</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-3">
+                          {log.status === 'SUCCESS' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              SUCCESS
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              FAILED
+                            </span>
+                          )}
+                        </td>
                       <td className="py-3 px-3 font-bold text-slate-900">
                         {log.name || 'Anonymous User'}
                       </td>
@@ -396,7 +434,8 @@ export default function AdminDashboardView() {
                 </tbody>
               </table>
             </div>
-          )}
+          </>
+        )}
         </div>
       )}
 
@@ -451,74 +490,113 @@ export default function AdminDashboardView() {
               <p className="text-slate-400 text-xs mt-1">Try clearing your search keyword.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="py-2.5 px-3">User Name</th>
-                    <th className="py-2.5 px-3">Email / Mobile</th>
-                    <th className="py-2.5 px-3">Role</th>
-                    <th className="py-2.5 px-3">Created At</th>
-                    <th className="py-2.5 px-3">Last Login</th>
-                    <th className="py-2.5 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-slate-900">{u.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">ID: {u.id.slice(-6)}</div>
-                      </td>
-                      <td className="py-3 px-3 font-mono text-slate-600">
-                        <div>{u.email}</div>
-                        {u.phone && <div className="text-[10px] text-slate-400">{u.phone}</div>}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${
-                            u.role === 'admin'
-                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                              : 'bg-blue-100 text-blue-800 border border-blue-200'
-                          }`}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-500">
-                        {new Date(u.createdAt).toLocaleDateString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </td>
-                      <td className="py-3 px-3 text-slate-600 font-medium">
-                        {u.lastLogin
-                          ? new Date(u.lastLogin).toLocaleString('en-IN', {
-                              day: '2-digit',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true,
-                            })
-                          : 'Never logged in'}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                            u.status === 'Active'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {u.status || 'Active'}
-                        </span>
-                      </td>
+            <>
+              {/* Mobile Stacked Cards (< 640px) */}
+              <div className="sm:hidden space-y-3">
+                {filteredUsers.map((u) => (
+                  <div key={u.id} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-sm">{u.name}</span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${
+                          u.role === 'admin'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : 'bg-blue-100 text-blue-800 border border-blue-200'
+                        }`}
+                      >
+                        {u.role}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] font-mono text-slate-600 space-y-0.5">
+                      <p className="break-all">{u.email}</p>
+                      {u.phone && <p className="text-slate-500">{u.phone}</p>}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px] text-slate-500">
+                      <span>
+                        Last Login: {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN') : 'Never'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                        u.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {u.status || 'Active'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= 640px) */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="py-2.5 px-3">User Name</th>
+                      <th className="py-2.5 px-3">Email / Mobile</th>
+                      <th className="py-2.5 px-3">Role</th>
+                      <th className="py-2.5 px-3">Created At</th>
+                      <th className="py-2.5 px-3">Last Login</th>
+                      <th className="py-2.5 px-3">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredUsers.map((u) => (
+                      <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900">{u.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">ID: {u.id.slice(-6)}</div>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-600">
+                          <div>{u.email}</div>
+                          {u.phone && <div className="text-[10px] text-slate-400">{u.phone}</div>}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${
+                              u.role === 'admin'
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : 'bg-blue-100 text-blue-800 border border-blue-200'
+                            }`}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-slate-500">
+                          {new Date(u.createdAt).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </td>
+                        <td className="py-3 px-3 text-slate-600 font-medium">
+                          {u.lastLogin
+                            ? new Date(u.lastLogin).toLocaleString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })
+                            : 'Never logged in'}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                              u.status === 'Active'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {u.status || 'Active'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -534,7 +612,7 @@ export default function AdminDashboardView() {
             </p>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl text-xs font-bold">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl text-xs font-bold overflow-x-auto no-scrollbar max-w-full">
             <button
               onClick={() => setActiveReportTab('weather')}
               className={`px-3 py-1.5 rounded-xl transition-all ${

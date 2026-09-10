@@ -12,6 +12,7 @@ import LoginView from '@/components/views/LoginView';
 import DashboardView from '@/components/views/DashboardView';
 import RouteOptimizationView from '@/components/views/RouteOptimizationView';
 import ShipmentTrackingView from '@/components/views/ShipmentTrackingView';
+import TrafficIntelligenceView from '@/components/views/TrafficIntelligenceView';
 import RiskIntelligenceView from '@/components/views/RiskIntelligenceView';
 import WeatherIntelligenceView from '@/components/views/WeatherIntelligenceView';
 import AccessibilityView from '@/components/views/AccessibilityView';
@@ -37,6 +38,8 @@ export default function Home() {
         return <RouteOptimizationView />;
       case 'tracking':
         return <ShipmentTrackingView />;
+      case 'traffic':
+        return <TrafficIntelligenceView />;
       case 'risks':
         return <RiskIntelligenceView />;
       case 'weather':
@@ -63,7 +66,7 @@ export default function Home() {
   const isFullWidthPage = activeView === 'landing' || activeView === 'login';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 w-full max-w-full overflow-x-hidden">
       {/* Global Top Navbar */}
       <Navbar />
 
@@ -71,12 +74,12 @@ export default function Home() {
       <MobileMenu />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden w-full max-w-full">
         {/* Desktop Sidebar (hidden on Landing & Login for clean visual presentation) */}
         {!isFullWidthPage && <Sidebar />}
 
         {/* Dynamic Viewport Content */}
-        <main className={`flex-1 overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full'}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full ${isFullWidthPage ? '' : 'p-3 sm:p-5 lg:p-8 max-w-7xl mx-auto'}`}>
           {renderActiveView()}
         </main>
       </div>

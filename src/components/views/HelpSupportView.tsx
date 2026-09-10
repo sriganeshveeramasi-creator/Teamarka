@@ -95,7 +95,7 @@ export default function HelpSupportView() {
       </div>
 
       {/* Quick Access Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div
           onClick={() => setActiveView('login')}
           className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-blue-300 shadow-sm cursor-pointer transition-all space-y-2"

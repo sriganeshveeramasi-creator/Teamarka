@@ -10,6 +10,7 @@ export type AppView =
   | 'dashboard'
   | 'route-opt'
   | 'tracking'
+  | 'traffic'
   | 'risks'
   | 'weather'
   | 'accessibility'
@@ -102,6 +103,7 @@ const PROTECTED_VIEWS: AppView[] = [
   'dashboard',
   'route-opt',
   'tracking',
+  'traffic',
   'risks',
   'weather',
   'accessibility',

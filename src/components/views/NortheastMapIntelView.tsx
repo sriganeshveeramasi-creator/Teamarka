@@ -62,10 +62,10 @@ export default function NortheastMapIntelView() {
           </div>
 
           {/* Zoom Tier Buttons */}
-          <div className="flex items-center gap-1.5 text-xs font-bold">
+          <div className="flex items-center gap-1.5 text-xs font-bold overflow-x-auto no-scrollbar max-w-full pb-0.5">
             <button
               onClick={() => setZoomLevel('state')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
                 zoomLevel === 'state'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -75,7 +75,7 @@ export default function NortheastMapIntelView() {
             </button>
             <button
               onClick={() => setZoomLevel('district')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
                 zoomLevel === 'district'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -85,7 +85,7 @@ export default function NortheastMapIntelView() {
             </button>
             <button
               onClick={() => setZoomLevel('local')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all shrink-0 ${
                 zoomLevel === 'local'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'

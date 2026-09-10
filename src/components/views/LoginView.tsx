@@ -387,10 +387,10 @@ export default function LoginView() {
               </div>
             )}
 
-            {/* Remember Me & Forgot Password (Login mode only) */}
+            {/* Remember Me checkbox */}
             {!isSignUpMode && (
-              <div className="flex items-center justify-between text-xs pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-slate-600">
+              <div className="flex items-center text-xs pt-0.5">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-600 select-none">
                   <input
                     type="checkbox"
                     checked={rememberMe}
@@ -399,22 +399,14 @@ export default function LoginView() {
                   />
                   <span>{t('rememberMe')}</span>
                 </label>
-
-                <button
-                  type="button"
-                  onClick={() => setForgotModalOpen(true)}
-                  className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
-                >
-                  {t('forgotPassword')}
-                </button>
               </div>
             )}
 
-            {/* Submit Button */}
+            {/* Login / Register Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer active:scale-95"
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer active:scale-95 min-h-[44px]"
             >
               {loading ? (
                 <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -425,10 +417,23 @@ export default function LoginView() {
                 </>
               )}
             </button>
+
+            {/* Forgot Password (Login mode) */}
+            {!isSignUpMode && (
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setForgotModalOpen(true)}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                >
+                  {t('forgotPassword')}
+                </button>
+              </div>
+            )}
           </form>
 
-          {/* Mode Switch & Help Link */}
-          <div className="pt-2 border-t border-slate-100 flex flex-col items-center gap-2.5 text-xs text-slate-500">
+          {/* Create Account & Help & Support Links */}
+          <div className="pt-2 border-t border-slate-100 flex flex-col items-center gap-2 text-xs text-slate-500">
             <button
               type="button"
               onClick={() => {
@@ -436,7 +441,7 @@ export default function LoginView() {
                 setErrorMessage('');
                 setSuccessMessage('');
               }}
-              className="font-semibold text-blue-600 hover:underline cursor-pointer"
+              className="font-semibold text-blue-600 hover:underline cursor-pointer py-1"
             >
               {isSignUpMode ? 'Already have an account? Login here' : t('createAccount')}
             </button>
@@ -444,7 +449,7 @@ export default function LoginView() {
             <button
               type="button"
               onClick={() => setActiveView('help')}
-              className="flex items-center gap-1 text-slate-500 hover:text-slate-800 cursor-pointer"
+              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 cursor-pointer py-1"
             >
               <HelpCircle className="w-3.5 h-3.5" />
               <span>{t('helpSupport')}</span>

@@ -139,7 +139,7 @@ export default function ShipmentTrackingView() {
           </div>
 
           {/* Details Table */}
-          <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
               <span className="text-slate-500">Route Corridor:</span>
               <p className="font-bold text-slate-900 mt-0.5">
@@ -174,22 +174,22 @@ export default function ShipmentTrackingView() {
           </div>
 
           {/* Driver Quick Contact */}
-          <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+          <div className="p-3.5 sm:p-4 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">
                 <User className="w-4 h-4" />
               </div>
-              <div>
-                <p className="font-bold text-slate-900">{currentShipment.driverName}</p>
-                <p className="text-[11px] text-slate-600">{currentShipment.driverPhone}</p>
+              <div className="min-w-0">
+                <p className="font-bold text-slate-900 truncate">{currentShipment.driverName}</p>
+                <p className="text-[11px] text-slate-600 truncate">{currentShipment.driverPhone}</p>
               </div>
             </div>
             <a
               href={`tel:${currentShipment.driverPhone}`}
-              className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center gap-1.5 shrink-0"
             >
               <Phone className="w-3.5 h-3.5" />
-              <span>Call Driver</span>
+              <span>Call</span>
             </a>
           </div>
         </div>

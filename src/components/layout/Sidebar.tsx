@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Navigation,
   Truck,
+  Activity,
   ShieldAlert,
   CloudRain,
   MapPin,
@@ -33,15 +34,16 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
   { id: 'route-opt', labelKey: 'routeOptimization', icon: Navigation, color: 'text-blue-600' },
   { id: 'tracking', labelKey: 'shipmentTracking', icon: Truck, badge: '4 Active', color: 'text-emerald-600' },
-  { id: 'risks', labelKey: 'riskIntelligence', icon: ShieldAlert, badge: 'Alerts', color: 'text-rose-600' },
+  { id: 'traffic', labelKey: 'traffic', icon: Activity, color: 'text-amber-500' },
   { id: 'weather', labelKey: 'weather', icon: CloudRain, color: 'text-cyan-600' },
+  { id: 'risks', labelKey: 'riskIntelligence', icon: ShieldAlert, badge: 'Alerts', color: 'text-rose-600' },
   { id: 'accessibility', labelKey: 'accessibility', icon: MapPin, color: 'text-purple-600' },
-  { id: 'northeast-map', labelKey: 'northeastMap', icon: Map, color: 'text-indigo-600' },
   { id: 'arka-assistant', labelKey: 'arkaAssistant', icon: Bot, badge: 'AI', color: 'text-violet-600' },
+  { id: 'northeast-map', labelKey: 'northeastMap', icon: Map, color: 'text-indigo-600' },
   { id: 'emergency', labelKey: 'emergencyMode', icon: AlertTriangle, color: 'text-rose-600' },
   { id: 'analytics', labelKey: 'analytics', icon: BarChart3, color: 'text-amber-600' },
-  { id: 'admin', labelKey: 'adminDashboard', icon: UserCheck, color: 'text-slate-600' },
   { id: 'help', labelKey: 'helpSupport', icon: HelpCircle, color: 'text-teal-600' },
+  { id: 'admin', labelKey: 'adminDashboard', icon: UserCheck, color: 'text-slate-600' },
 ];
 
 export default function Sidebar() {

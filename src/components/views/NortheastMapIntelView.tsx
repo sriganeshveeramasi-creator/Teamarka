@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { NORTHEAST_STATES } from '@/data/northeastData';
 import NortheastInteractiveMap from '@/components/map/NortheastInteractiveMap';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
 import {
   Map,
   Filter,
@@ -17,12 +18,27 @@ import {
 } from 'lucide-react';
 
 export default function NortheastMapIntelView() {
-  const { t } = useApp();
+  const { currentRouteResult, t } = useApp();
 
-  const [selectedState, setSelectedState] = useState<string>('Assam');
+  const [selectedState, setSelectedState] = useState<string>(currentRouteResult?.destState || 'Assam');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('Kamrup Metro');
   const [selectedLocality, setSelectedLocality] = useState<string>('Guwahati City Center');
   const [zoomLevel, setZoomLevel] = useState<'state' | 'district' | 'local'>('district');
+
+  // Synchronize state when active route changes
+  useEffect(() => {
+    if (currentRouteResult?.destState) {
+      const sName = currentRouteResult.destState;
+      setSelectedState(sName);
+      const target = NORTHEAST_STATES.find((s) => s.name === sName);
+      if (target && target.cities.length > 0) {
+        const destCityObj = target.cities.find((c) => c.name.toLowerCase() === currentRouteResult.destCity.toLowerCase());
+        const city = destCityObj || target.cities[0];
+        setSelectedDistrict(city.district);
+        setSelectedLocality(`${city.name} Hub`);
+      }
+    }
+  }, [currentRouteResult.routeId]);
 
   const activeStateObj = NORTHEAST_STATES.find((s) => s.name === selectedState) || NORTHEAST_STATES[0];
 
@@ -53,6 +69,9 @@ export default function NortheastMapIntelView() {
         </p>
       </div>
 
+      {/* Active Route Corridor Banner */}
+      <ActiveRouteIndicator />
+
       {/* Cascading Regional Navigation Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -65,7 +84,7 @@ export default function NortheastMapIntelView() {
           <div className="flex items-center gap-1.5 text-xs font-bold">
             <button
               onClick={() => setZoomLevel('state')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 zoomLevel === 'state'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -75,7 +94,7 @@ export default function NortheastMapIntelView() {
             </button>
             <button
               onClick={() => setZoomLevel('district')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 zoomLevel === 'district'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -85,7 +104,7 @@ export default function NortheastMapIntelView() {
             </button>
             <button
               onClick={() => setZoomLevel('local')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 zoomLevel === 'local'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -157,12 +176,12 @@ export default function NortheastMapIntelView() {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
             <span className="font-bold text-slate-800">
-              Active Focus: {selectedLocality}, {selectedDistrict}, {selectedState}
+              Active Focus: {selectedLocality}, {selectedDistrict}, {selectedState} • Active Corridor: {currentRouteResult.sourceCity} ➔ {currentRouteResult.destCity}
             </span>
           </div>
 
           <span className="text-slate-500 text-[11px]">
-            Showing decluttered layer at {zoomLevel.toUpperCase()} scale
+            Showing layer at {zoomLevel.toUpperCase()} scale
           </span>
         </div>
 

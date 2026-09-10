@@ -1,8 +1,28 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { Language, TRANSLATIONS, LANGUAGES, LanguageOption } from '@/data/translations';
-import { HIGHWAY_ROUTES, HighwayRoute, VEHICLE_OPTIONS, VehicleOption } from '@/data/northeastData';
+import {
+  VEHICLE_OPTIONS,
+  VehicleOption,
+  getCityCoordinates,
+  getVillageCoordinates,
+} from '@/data/northeastData';
+import { PRIMARY_ROAD_COORDINATES, ALT_ROAD_COORDINATES } from '@/data/realGeoData';
+import { calculateRoadRoute } from '@/services/routingService';
+import {
+  generateRouteId,
+  getRouteRisks,
+  getRouteWeather,
+  getRouteServices,
+  getRouteEmergencyData,
+  getRouteAnalytics,
+  getAssistantContext,
+  RouteWeatherPoint,
+  RouteEmergencyInfo,
+  RouteAnalyticsData,
+} from '@/services/routeDataService';
+import { RiskIntelligenceAlert, AccessibilityFacility } from '@/data/mockLogistics';
 
 export type AppView =
   | 'landing'
@@ -21,10 +41,21 @@ export type AppView =
   | 'help';
 
 export interface RouteCalcResult {
+  routeId: string;
   sourceState: string;
   sourceCity: string;
+  sourceVillage?: string;
   destState: string;
   destCity: string;
+  destVillage?: string;
+  isCurrentLocation?: boolean;
+  currentLocationCoords?: { lat: number; lng: number; label?: string };
+  sourceCoords?: { lat: number; lng: number };
+  destCoords?: { lat: number; lng: number };
+  geometry?: [number, number][];
+  altGeometry?: [number, number][];
+  altDistanceKm?: number;
+  altEta?: string;
   vehicle: VehicleOption;
   distanceKm: number;
   eta: string;
@@ -42,7 +73,14 @@ export interface RouteCalcResult {
   isAlternative: boolean;
 }
 
-interface AppContextType {
+export interface RouteCalculationOptions {
+  sourceVillage?: string;
+  destVillage?: string;
+  isCurrentLocation?: boolean;
+  currentLocationCoords?: { lat: number; lng: number; label?: string };
+}
+
+export interface AppContextType {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
   isAuthenticated: boolean;
@@ -58,15 +96,41 @@ interface AppContextType {
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
   currentRouteResult: RouteCalcResult;
-  calculateRoute: (sourceState: string, sourceCity: string, destState: string, destCity: string, vehicleId: string) => void;
+  activeRoute: RouteCalcResult;
+  routeRisks: RiskIntelligenceAlert[];
+  routeWeather: { primaryWeather: RouteWeatherPoint; routeWeatherPoints: RouteWeatherPoint[] };
+  routeServices: AccessibilityFacility[];
+  routeEmergencyData: RouteEmergencyInfo;
+  routeAnalytics: RouteAnalyticsData;
+  assistantContext: string;
+  isRouteCalculating: boolean;
+  routeError: string | null;
+  clearPreviousRoute: () => void;
+  calculateRoute: (
+    sourceState: string,
+    sourceCity: string,
+    destState: string,
+    destCity: string,
+    vehicleId: string,
+    options?: RouteCalculationOptions
+  ) => Promise<boolean>;
   t: (key: string) => string;
 }
 
 const defaultRouteResult: RouteCalcResult = {
+  routeId: 'ARKA_ASSAM_GUWAHATI_TO_MANIPUR_IMPHAL',
   sourceState: 'Assam',
   sourceCity: 'Guwahati',
+  sourceVillage: 'Dispur',
   destState: 'Manipur',
   destCity: 'Imphal',
+  destVillage: 'Imphal City',
+  sourceCoords: { lat: 26.1445, lng: 91.7362 },
+  destCoords: { lat: 24.8170, lng: 93.9368 },
+  geometry: PRIMARY_ROAD_COORDINATES,
+  altGeometry: ALT_ROAD_COORDINATES,
+  altDistanceKm: 535,
+  altEta: '13 hrs 45 mins',
   vehicle: VEHICLE_OPTIONS[4], // Mini Truck
   distanceKm: 485,
   eta: '11 hrs 30 mins',
@@ -80,7 +144,7 @@ const defaultRouteResult: RouteCalcResult = {
   accessibilityScore: 91,
   estimatedCost: 3450,
   routeScore: 92,
-  reasoning: 'ARKA selected this route because it has lower traffic, lower risk and better accessibility for the selected vehicle.',
+  reasoning: 'ARKA AI selected this primary highway corridor (NH-27 & NH-29) for lower congestion, verified slope stability, and high accessibility.',
   isAlternative: false,
 };
 
@@ -94,6 +158,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [emergencyMode, setEmergencyMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [currentRouteResult, setCurrentRouteResult] = useState<RouteCalcResult>(defaultRouteResult);
+  const [isRouteCalculating, setIsRouteCalculating] = useState<boolean>(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+
+  // Restore persisted active route on client mount
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('arka-selected-route');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.sourceCity && parsed.destCity && parsed.distanceKm) {
+            setCurrentRouteResult(parsed);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ARKA] Failed to read stored route from localStorage', e);
+    }
+  }, []);
 
   const t = (key: string): string => {
     const dict = TRANSLATIONS[language] || TRANSLATIONS['en'];
@@ -125,67 +208,158 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const calculateRoute = (
+  const clearPreviousRoute = useCallback(() => {
+    setRouteError(null);
+  }, []);
+
+  const calculateRoute = async (
     sourceState: string,
     sourceCity: string,
     destState: string,
     destCity: string,
-    vehicleId: string
-  ) => {
+    vehicleId: string,
+    options?: RouteCalculationOptions
+  ): Promise<boolean> => {
     const selectedVehicle = VEHICLE_OPTIONS.find((v) => v.id === vehicleId) || VEHICLE_OPTIONS[4];
+    setIsRouteCalculating(true);
+    setRouteError(null);
 
-    // Realistic calculation based on Northeast geography
-    const isSameCity = sourceCity === destCity;
-    const isHillRoute = ['Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'].includes(destState) ||
-                        ['Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'].includes(sourceState);
+    try {
+      // 1. Resolve Origin Coordinates
+      let originCoords: { lat: number; lng: number; name: string; state: string; district: string } | null = null;
+      if (options?.isCurrentLocation && options?.currentLocationCoords) {
+        originCoords = {
+          lat: options.currentLocationCoords.lat,
+          lng: options.currentLocationCoords.lng,
+          name: options.currentLocationCoords.label || 'Current Location',
+          state: sourceState,
+          district: sourceCity,
+        };
+      } else {
+        originCoords =
+          getVillageCoordinates(options?.sourceVillage, sourceCity, sourceState) ||
+          getCityCoordinates(sourceCity, sourceState);
+      }
 
-    let distance = 485;
-    if (sourceCity === 'Guwahati' && destCity === 'Imphal') distance = 485;
-    else if (sourceCity === 'Guwahati' && destCity === 'Silchar') distance = 325;
-    else if (sourceCity === 'Guwahati' && destCity === 'Shillong') distance = 98;
-    else if (sourceCity === 'Guwahati' && destCity === 'Dibrugarh') distance = 445;
-    else if (sourceCity === 'Shillong' && destCity === 'Silchar') distance = 215;
-    else distance = Math.max(75, Math.floor(Math.abs(sourceCity.length - destCity.length) * 45 + 220));
+      // 2. Resolve Destination Coordinates
+      const destCoords =
+        getVillageCoordinates(options?.destVillage, destCity, destState) ||
+        getCityCoordinates(destCity, destState);
 
-    const speed = isHillRoute ? selectedVehicle.speedFactor * 42 : selectedVehicle.speedFactor * 55;
-    const totalHours = distance / speed;
-    const hours = Math.floor(totalHours);
-    const mins = Math.round((totalHours - hours) * 60);
-    const etaStr = `${hours} hrs ${mins > 0 ? `${mins} mins` : ''}`;
+      if (!originCoords) {
+        throw new Error(
+          `Coordinates for origin ${options?.sourceVillage || sourceCity} (${sourceState}) could not be resolved.`
+        );
+      }
+      if (!destCoords) {
+        throw new Error(
+          `Coordinates for destination ${options?.destVillage || destCity} (${destState}) could not be resolved.`
+        );
+      }
 
-    const traffic = isHillRoute ? 38 : 34;
-    const signals = Math.max(3, Math.floor(distance / 60));
-    const tolls = Math.max(1, Math.floor(distance / 140));
-    const tollCost = tolls * 95;
-    const estimatedCost = Math.round(distance * selectedVehicle.costPerKm + tollCost);
+      // 3. Call Real Road Routing Service (OSRM Road Network with alternatives)
+      const routeData = await calculateRoadRoute(
+        { lat: originCoords.lat, lng: originCoords.lng, name: originCoords.name },
+        { lat: destCoords.lat, lng: destCoords.lng, name: destCoords.name },
+        selectedVehicle.speedFactor
+      );
 
-    const landslideRisk = isHillRoute ? 'MEDIUM' : 'LOW';
-    const floodRisk = sourceState === 'Assam' || destState === 'Assam' ? 'LOW' : 'LOW';
-    const accessibilityScore = isHillRoute ? 88 : 94;
-    const routeScore = isHillRoute ? 89 : 92;
+      const distanceKm = routeData.distanceKm;
+      const eta = routeData.eta;
 
-    setCurrentRouteResult({
-      sourceState,
-      sourceCity,
-      destState,
-      destCity,
-      vehicle: selectedVehicle,
-      distanceKm: distance,
-      eta: etaStr,
-      trafficPercent: traffic,
-      trafficSignalsCount: signals,
-      tollGatesCount: tolls,
-      tollCost,
-      weatherRisk: 'LOW',
-      landslideRisk,
-      floodRisk,
-      accessibilityScore,
-      estimatedCost,
-      routeScore,
-      reasoning: `ARKA selected this route because it has lower traffic, lower risk and better accessibility for ${selectedVehicle.name}. Hill grade stability has been verified.`,
-      isAlternative: false,
-    });
+      const isHillRoute =
+        ['Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'].includes(destState) ||
+        ['Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'].includes(sourceState);
+
+      const traffic = isHillRoute ? Math.min(65, 34 + Math.round((distanceKm % 15))) : Math.min(50, 28 + Math.round((distanceKm % 12)));
+      const signals = Math.max(1, Math.floor(distanceKm / 42));
+      const tolls = Math.max(0, Math.floor(distanceKm / 110));
+      const tollCost = tolls * 95;
+      const estimatedCost = Math.round(distanceKm * selectedVehicle.costPerKm + tollCost);
+
+      const landslideRisk = isHillRoute ? (distanceKm > 75 ? 'MEDIUM' : 'LOW') : 'LOW';
+      const floodRisk = (sourceState === 'Assam' || destState === 'Assam') && distanceKm > 100 ? 'LOW' : 'LOW';
+      const accessibilityScore = isHillRoute ? Math.max(78, 92 - Math.floor(distanceKm / 100)) : 95;
+      const routeScore = Math.max(76, Math.min(98, Math.round(96 - (distanceKm > 350 ? 3 : 1) - (isHillRoute ? 2 : 0))));
+
+      const fromLabel = options?.isCurrentLocation
+        ? 'Current GPS Location'
+        : options?.sourceVillage
+        ? `${options.sourceVillage} (${sourceCity})`
+        : sourceCity;
+      const toLabel = options?.destVillage ? `${options.destVillage} (${destCity})` : destCity;
+
+      const reasoning = `ARKA AI selected this road route (${fromLabel} ➔ ${toLabel}) optimized for distance (${distanceKm} km, ${eta}), lower hill terrain risk (${landslideRisk}), synchronized checkpoints (${signals} signals), and economic toll allocation (₹${tollCost}) suited for ${selectedVehicle.name}.`;
+
+      const newRoute: RouteCalcResult = {
+        routeId: generateRouteId(
+          sourceState,
+          options?.sourceVillage || sourceCity,
+          destState,
+          options?.destVillage || destCity
+        ) + `_${Date.now()}`,
+        sourceState,
+        sourceCity,
+        sourceVillage: options?.sourceVillage,
+        destState,
+        destCity,
+        destVillage: options?.destVillage,
+        isCurrentLocation: options?.isCurrentLocation,
+        currentLocationCoords: options?.currentLocationCoords,
+        sourceCoords: { lat: originCoords.lat, lng: originCoords.lng },
+        destCoords: { lat: destCoords.lat, lng: destCoords.lng },
+        geometry: routeData.geometry,
+        altGeometry: routeData.altGeometry,
+        altDistanceKm: routeData.altDistanceKm,
+        altEta: routeData.altEta,
+        vehicle: selectedVehicle,
+        distanceKm,
+        eta,
+        trafficPercent: traffic,
+        trafficSignalsCount: signals,
+        tollGatesCount: tolls,
+        tollCost,
+        weatherRisk: 'LOW',
+        landslideRisk,
+        floodRisk,
+        accessibilityScore,
+        estimatedCost,
+        routeScore,
+        reasoning,
+        isAlternative: false,
+      };
+
+      setCurrentRouteResult(newRoute);
+
+      // Persist in localStorage
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('arka-selected-route', JSON.stringify(newRoute));
+        }
+      } catch (e) {
+        console.warn('[ARKA] Failed to save route to localStorage', e);
+      }
+
+      setIsRouteCalculating(false);
+      return true;
+    } catch (err: any) {
+      if (err.message === 'STALE_REQUEST') {
+        return false;
+      }
+      console.error('[ARKA Route Calculation Error]', err);
+      setRouteError(err.message || 'Unable to calculate road route. Please check the locations and try again.');
+      setIsRouteCalculating(false);
+      return false;
+    }
   };
+
+  // Memoized route data derived from the current active route
+  const routeRisks = useMemo(() => getRouteRisks(currentRouteResult), [currentRouteResult]);
+  const routeWeather = useMemo(() => getRouteWeather(currentRouteResult), [currentRouteResult]);
+  const routeServices = useMemo(() => getRouteServices(currentRouteResult), [currentRouteResult]);
+  const routeEmergencyData = useMemo(() => getRouteEmergencyData(currentRouteResult), [currentRouteResult]);
+  const routeAnalytics = useMemo(() => getRouteAnalytics(currentRouteResult), [currentRouteResult]);
+  const assistantContext = useMemo(() => getAssistantContext(currentRouteResult), [currentRouteResult]);
 
   return (
     <AppContext.Provider
@@ -205,6 +379,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         mobileMenuOpen,
         setMobileMenuOpen,
         currentRouteResult,
+        activeRoute: currentRouteResult,
+        routeRisks,
+        routeWeather,
+        routeServices,
+        routeEmergencyData,
+        routeAnalytics,
+        assistantContext,
+        isRouteCalculating,
+        routeError,
+        clearPreviousRoute,
         calculateRoute,
         t,
       }}

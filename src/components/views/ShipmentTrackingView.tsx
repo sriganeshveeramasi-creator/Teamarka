@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { MOCK_SHIPMENTS, ShipmentItem } from '@/data/mockLogistics';
 import NortheastInteractiveMap from '@/components/map/NortheastInteractiveMap';
 import StatusBadge from '@/components/common/StatusBadge';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
 import {
   Truck,
   Search,
@@ -20,12 +21,39 @@ import {
 } from 'lucide-react';
 
 export default function ShipmentTrackingView() {
-  const { t } = useApp();
-  const [selectedShipmentId, setSelectedShipmentId] = useState<string>(MOCK_SHIPMENTS[0].id);
+  const { currentRouteResult, t } = useApp();
+
+  // Create an active dispatch shipment item representing the current global active route
+  const activeDispatchShipment: ShipmentItem = {
+    id: 'ARKA-ACTIVE-DISPATCH',
+    source: currentRouteResult.sourceCity,
+    sourceState: currentRouteResult.sourceState,
+    destination: currentRouteResult.destCity,
+    destState: currentRouteResult.destState,
+    driverName: 'Ranjit Das',
+    driverPhone: '+91 94350 77123',
+    vehicleType: currentRouteResult.vehicle?.name || 'Mini Truck',
+    vehiclePlate: 'ARKA-NE-7740',
+    cargoType: 'High Priority Medical / Logistics Freight',
+    currentLocation: `${currentRouteResult.sourceCity} Expressway Terminal`,
+    eta: currentRouteResult.eta,
+    trafficPercent: currentRouteResult.trafficPercent,
+    riskLevel: currentRouteResult.landslideRisk || 'LOW',
+    statusStep: 2,
+    statusText: 'In Transit (Synchronized)',
+    routeProgress: 45,
+    coordinates: currentRouteResult.sourceCoords
+      ? { x: 300, y: 300 }
+      : { x: 405, y: 340 },
+  };
+
+  const allShipments = [activeDispatchShipment, ...MOCK_SHIPMENTS];
+
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string>(activeDispatchShipment.id);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const currentShipment: ShipmentItem =
-    MOCK_SHIPMENTS.find((s) => s.id === selectedShipmentId) || MOCK_SHIPMENTS[0];
+    allShipments.find((s) => s.id === selectedShipmentId) || allShipments[0];
 
   const steps = [
     { step: 1, label: 'Picked Up', desc: 'Depot Dispatch' },
@@ -33,6 +61,13 @@ export default function ShipmentTrackingView() {
     { step: 3, label: 'Near Destination', desc: 'Last Mile Entry' },
     { step: 4, label: 'Delivered', desc: 'Recipient Handover' },
   ];
+
+  const filteredShipments = allShipments.filter(
+    (s) =>
+      s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.source.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -48,9 +83,12 @@ export default function ShipmentTrackingView() {
           {t('shipmentTracking')}
         </h1>
         <p className="text-xs sm:text-sm text-cyan-100 max-w-2xl mt-1">
-          Monitor multi-modal freight movement across hilly terrain with automated checkpoint validation.
+          Monitor multi-modal freight movement across Northeast terrain with automated checkpoint validation.
         </p>
       </div>
+
+      {/* Active Route Corridor Banner */}
+      <ActiveRouteIndicator />
 
       {/* Shipment Selector Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
@@ -58,17 +96,17 @@ export default function ShipmentTrackingView() {
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
             Track Shipment:
           </span>
-          {MOCK_SHIPMENTS.map((s) => (
+          {filteredShipments.map((s) => (
             <button
               key={s.id}
               onClick={() => setSelectedShipmentId(s.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 selectedShipmentId === s.id
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              {s.id} ({s.destination})
+              {s.id === 'ARKA-ACTIVE-DISPATCH' ? `Active Corridor (${s.source} ➔ ${s.destination})` : `${s.id} (${s.destination})`}
             </button>
           ))}
         </div>
@@ -76,7 +114,7 @@ export default function ShipmentTrackingView() {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search Shipment ID..."
+            placeholder="Search Shipment / Hub..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -167,9 +205,9 @@ export default function ShipmentTrackingView() {
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
               <span className="text-slate-500">Corridor Traffic:</span>
               <p className="font-bold text-emerald-600 mt-0.5">
-                {currentShipment.trafficPercent}% Moderate
+                {currentShipment.trafficPercent}% Flow Density
               </p>
-              <p className="text-[11px] text-slate-500">No clearance delays</p>
+              <p className="text-[11px] text-slate-500">Synchronized telemetry</p>
             </div>
           </div>
 
@@ -199,10 +237,10 @@ export default function ShipmentTrackingView() {
           <div className="px-3 py-1 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-              <span className="font-bold text-slate-800">Live GPS Corridor Position</span>
+              <span className="font-bold text-slate-800">Live GPS Position: {currentShipment.source} ➔ {currentShipment.destination}</span>
             </div>
             <span className="text-slate-400 font-mono text-[11px]">
-              Tracking GPS Refresh: 10s
+              Active Corridor Map
             </span>
           </div>
 

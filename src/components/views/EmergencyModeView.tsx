@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import NortheastInteractiveMap from '@/components/map/NortheastInteractiveMap';
 import StatusBadge from '@/components/common/StatusBadge';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
 import {
   AlertOctagon,
   PhoneCall,
@@ -19,13 +20,15 @@ import {
 } from 'lucide-react';
 
 export default function EmergencyModeView() {
-  const { toggleEmergencyMode, t } = useApp();
+  const { currentRouteResult, routeEmergencyData, toggleEmergencyMode, t } = useApp();
   const [sosSent, setSosSent] = useState(false);
 
   const handleBroadcastSOS = () => {
     setSosSent(true);
     setTimeout(() => setSosSent(false), 3500);
   };
+
+  const ed = routeEmergencyData;
 
   return (
     <div className="space-y-6">
@@ -60,7 +63,7 @@ export default function EmergencyModeView() {
             </button>
             <button
               onClick={toggleEmergencyMode}
-              className="px-4 py-2.5 rounded-2xl bg-black/30 hover:bg-black/40 text-white font-bold text-xs sm:text-sm border border-white/20"
+              className="px-4 py-2.5 rounded-2xl bg-black/30 hover:bg-black/40 text-white font-bold text-xs sm:text-sm border border-white/20 cursor-pointer"
             >
               Exit Emergency
             </button>
@@ -68,9 +71,12 @@ export default function EmergencyModeView() {
         </div>
 
         <p className="text-xs sm:text-sm text-red-100 leading-relaxed max-w-3xl">
-          National Highway 27 slope breakdown identified near Dima Hasao. Traffic command has activated the Lumding-Diphu alternate emergency corridor for medical and disaster supply convoys.
+          Terrain disruption alert active along {ed.corridorName}. Logistics emergency bypass routing is activated for medical and humanitarian relief convoys.
         </p>
       </div>
+
+      {/* Active Route Corridor Banner */}
+      <ActiveRouteIndicator />
 
       {/* Emergency Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -80,11 +86,11 @@ export default function EmergencyModeView() {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Affected Sector
             </span>
-            <StatusBadge level="HIGH" text="CRITICAL" size="sm" />
+            <StatusBadge level={ed.severity} text="CRITICAL" size="sm" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900">NH-27 Dima Hasao Hill Pass</h3>
+          <h3 className="text-lg font-bold text-slate-900">{ed.affectedSector}</h3>
           <p className="text-xs text-slate-600">
-            Sector KM 142-158 blocked by heavy monsoon mudslide. Civil engineering teams deployed.
+            {ed.affectedDescription}
           </p>
         </div>
 
@@ -92,15 +98,15 @@ export default function EmergencyModeView() {
         <div className="bg-white p-5 rounded-3xl border border-amber-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Blocked Roads & Bypass
+              Emergency Detour Bypass
             </span>
             <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
               Diverted
             </span>
           </div>
-          <h3 className="text-lg font-bold text-slate-900">Lumding-Diphu Bypass</h3>
+          <h3 className="text-lg font-bold text-slate-900">{ed.bypassCorridor}</h3>
           <p className="text-xs text-slate-600">
-            Designated green corridor open with military logistics escort. Max axle weight 20T.
+            {ed.bypassDescription}
           </p>
         </div>
 
@@ -112,9 +118,9 @@ export default function EmergencyModeView() {
             </span>
             <Hospital className="w-4 h-4 text-blue-600" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900">Haflong Civil Hospital</h3>
+          <h3 className="text-lg font-bold text-slate-900">{ed.nearestHospital.name}</h3>
           <p className="text-xs text-slate-600">
-            Distance: <span className="font-bold text-blue-600">14.5 km</span> • ETA: 22 mins. Emergency blood bank & 40 beds ready.
+            Distance: <span className="font-bold text-blue-600">{ed.nearestHospital.distanceKm} km</span> • ETA: {ed.nearestHospital.travelTime}. {ed.nearestHospital.status}
           </p>
         </div>
 
@@ -126,9 +132,9 @@ export default function EmergencyModeView() {
             </span>
             <Warehouse className="w-4 h-4 text-emerald-600" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900">CWC Lumding Depot</h3>
+          <h3 className="text-lg font-bold text-slate-900">{ed.reliefDepot.name}</h3>
           <p className="text-xs text-slate-600">
-            Distance: <span className="font-bold text-emerald-600">32.0 km</span> • Ready ration stocks and rescue rafts staged.
+            Distance: <span className="font-bold text-emerald-600">{ed.reliefDepot.distanceKm} km</span> • {ed.reliefDepot.status}
           </p>
         </div>
       </div>
@@ -140,10 +146,12 @@ export default function EmergencyModeView() {
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
-              <span className="font-bold text-slate-900">Active Emergency Rescue Corridor Line</span>
+              <span className="font-bold text-slate-900">
+                Active Emergency Corridor Line: {currentRouteResult.sourceCity} ➔ {currentRouteResult.destCity}
+              </span>
             </div>
             <span className="font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">
-              High Risk Red Alert Active
+              High Risk Alert Active
             </span>
           </div>
 
@@ -168,23 +176,13 @@ export default function EmergencyModeView() {
               <p className="text-[11px] text-red-700 mt-0.5">24/7 Integrated Police & Medical Dispatch</p>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
-              <p className="font-bold text-slate-800">Assam State Disaster Authority (ASDMA)</p>
-              <p className="text-sm font-bold text-blue-700">1079 / 0361-2237221</p>
-              <p className="text-[11px] text-slate-500">Dispur Control Room</p>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
-              <p className="font-bold text-slate-800">NDRF 1st Bn Rapid Deployment</p>
-              <p className="text-sm font-bold text-blue-700">0361-2840027</p>
-              <p className="text-[11px] text-slate-500">Patgaon, Kamrup Base</p>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
-              <p className="font-bold text-slate-800">Manipur Disaster Management</p>
-              <p className="text-sm font-bold text-blue-700">0385-2443441</p>
-              <p className="text-[11px] text-slate-500">Babupara, Imphal Control</p>
-            </div>
+            {ed.hotlines.map((hl, i) => (
+              <div key={i} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                <p className="font-bold text-slate-800">{hl.title}</p>
+                <p className="text-sm font-bold text-blue-700">{hl.number}</p>
+                <p className="text-[11px] text-slate-500">{hl.subtitle}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

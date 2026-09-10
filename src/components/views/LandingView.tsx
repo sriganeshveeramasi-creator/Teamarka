@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function LandingView() {
-  const { setActiveView, setMobileMenuOpen, t } = useApp();
+  const { currentRouteResult, setActiveView, setMobileMenuOpen, t } = useApp();
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-between bg-gradient-to-b from-blue-50/50 via-white to-emerald-50/40">
@@ -95,7 +95,9 @@ export default function LandingView() {
                   <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse" />
                   <span className="font-bold text-slate-700">Northeast Digital Corridor View</span>
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400">Guwahati ⇄ Imphal Gateway</span>
+                <span className="text-[11px] font-semibold text-slate-400">
+                  {currentRouteResult?.sourceCity || 'Guwahati'} ⇄ {currentRouteResult?.destCity || 'Imphal'} Gateway
+                </span>
               </div>
               <NortheastInteractiveMap heightClass="h-[360px] sm:h-[420px]" />
             </div>

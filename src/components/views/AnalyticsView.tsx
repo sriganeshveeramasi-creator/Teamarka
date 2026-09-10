@@ -3,6 +3,7 @@
 import React from 'react';
 import { useApp } from '@/context/AppContext';
 import StatCard from '@/components/common/StatCard';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
 import {
   BarChart3,
   CheckCircle2,
@@ -13,10 +14,14 @@ import {
   Activity,
   Truck,
   TrendingUp,
+  Navigation,
+  IndianRupee,
 } from 'lucide-react';
 
 export default function AnalyticsView() {
-  const { t } = useApp();
+  const { currentRouteResult, routeAnalytics, t } = useApp();
+
+  const ra = routeAnalytics;
 
   // Lightweight chart data
   const monthlyDeliveries = [
@@ -54,7 +59,51 @@ export default function AnalyticsView() {
         </p>
       </div>
 
-      {/* Top Stat Cards */}
+      {/* Active Route Corridor Banner */}
+      <ActiveRouteIndicator />
+
+      {/* Active Corridor Analytics Spotlight Card */}
+      <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-blue-950 p-6 rounded-3xl text-white shadow-md border border-indigo-700/40 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-800/60 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+              <Navigation className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">
+                Active Corridor Performance Telemetry
+              </span>
+              <h2 className="text-lg sm:text-xl font-black text-white">
+                {ra.corridorName} ({ra.vehicleName})
+              </h2>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
+            Efficiency Score: {ra.efficiencyScore}%
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+            <span className="text-slate-400 block text-[11px]">Real Road Distance</span>
+            <span className="text-lg font-black text-white">{ra.distanceKm} km</span>
+          </div>
+          <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+            <span className="text-slate-400 block text-[11px]">Calculated ETA</span>
+            <span className="text-lg font-black text-cyan-300">{ra.eta}</span>
+          </div>
+          <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+            <span className="text-slate-400 block text-[11px]">Fuel / Transit Cost</span>
+            <span className="text-lg font-black text-amber-300">₹{ra.fuelCost}</span>
+          </div>
+          <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+            <span className="text-slate-400 block text-[11px]">Total with Tolls</span>
+            <span className="text-lg font-black text-emerald-300">₹{ra.estimatedCost}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Regional Top Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Completed Deliveries"
@@ -73,7 +122,7 @@ export default function AnalyticsView() {
           badgeText="-4% reduction"
         />
         <StatCard
-          title="Route Efficiency"
+          title="Regional Efficiency"
           value="94.2%"
           subtitle="AI optimized routing"
           icon={Zap}
@@ -140,41 +189,41 @@ export default function AnalyticsView() {
         <div className="lg:col-span-5 space-y-5">
           {/* Delay Factor Breakdown */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-900 text-sm">Primary Transit Delay Causes</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Corridor Transit Delay Factors</h3>
             <div className="space-y-2.5 text-xs">
               <div>
                 <div className="flex justify-between font-semibold text-slate-700 mb-1">
                   <span className="flex items-center gap-1.5">
                     <CloudRain className="w-3.5 h-3.5 text-cyan-600" /> Weather & Monsoon Inundation
                   </span>
-                  <span className="text-cyan-700 font-bold">58%</span>
+                  <span className="text-cyan-700 font-bold">{ra.delayFactorWeather}%</span>
                 </div>
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-cyan-500 h-full rounded-full" style={{ width: '58%' }} />
+                  <div className="bg-cyan-500 h-full rounded-full" style={{ width: `${ra.delayFactorWeather}%` }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between font-semibold text-slate-700 mb-1">
                   <span className="flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-amber-600" /> Mountain Convoy & Traffic Delays
+                    <Activity className="w-3.5 h-3.5 text-amber-600" /> Mountain Convoy & Traffic Density
                   </span>
-                  <span className="text-amber-700 font-bold">24%</span>
+                  <span className="text-amber-700 font-bold">{ra.delayFactorTraffic}%</span>
                 </div>
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full rounded-full" style={{ width: '24%' }} />
+                  <div className="bg-amber-500 h-full rounded-full" style={{ width: `${ra.delayFactorTraffic}%` }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between font-semibold text-slate-700 mb-1">
                   <span className="flex items-center gap-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Rockfalls & Landslide Detours
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Slope Hazards & Detours
                   </span>
-                  <span className="text-rose-700 font-bold">18%</span>
+                  <span className="text-rose-700 font-bold">{ra.delayFactorTerrain}%</span>
                 </div>
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-rose-500 h-full rounded-full" style={{ width: '18%' }} />
+                  <div className="bg-rose-500 h-full rounded-full" style={{ width: `${ra.delayFactorTerrain}%` }} />
                 </div>
               </div>
             </div>

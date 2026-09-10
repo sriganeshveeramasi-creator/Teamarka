@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import StatCard from '@/components/common/StatCard';
 import StatusBadge from '@/components/common/StatusBadge';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
 import NortheastInteractiveMap from '@/components/map/NortheastInteractiveMap';
 import {
   Truck,
@@ -23,8 +24,11 @@ import {
 } from 'lucide-react';
 
 export default function DashboardView() {
-  const { setActiveView, t } = useApp();
+  const { currentRouteResult, routeWeather, routeRisks, setActiveView, t } = useApp();
   const [showAltRoute, setShowAltRoute] = useState(false);
+
+  const primaryWeather = routeWeather.primaryWeather;
+  const topRisks = routeRisks.slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -41,21 +45,21 @@ export default function DashboardView() {
             Northeast AI Logistics Dashboard
           </h1>
           <p className="text-xs sm:text-sm text-cyan-100 max-w-2xl mt-1">
-            Active monitoring across Guwahati-Shillong-Dimapur-Kohima-Imphal supply corridors.
+            Active monitoring across {currentRouteResult.sourceCity} ({currentRouteResult.sourceState}) ⇄ {currentRouteResult.destCity} ({currentRouteResult.destState}) corridor.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveView('route-opt')}
-            className="px-4 py-2.5 rounded-xl bg-white text-blue-700 font-bold text-xs sm:text-sm shadow-sm hover:bg-cyan-50 flex items-center gap-1.5 transition-transform active:scale-95"
+            className="px-4 py-2.5 rounded-xl bg-white text-blue-700 font-bold text-xs sm:text-sm shadow-sm hover:bg-cyan-50 flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
           >
             <Navigation className="w-4 h-4 text-blue-600" />
             <span>AI Route Planner</span>
           </button>
           <button
             onClick={() => setActiveView('arka-assistant')}
-            className="px-4 py-2.5 rounded-xl bg-cyan-500/30 border border-white/30 text-white font-bold text-xs sm:text-sm hover:bg-cyan-500/40 backdrop-blur-md flex items-center gap-1.5"
+            className="px-4 py-2.5 rounded-xl bg-cyan-500/30 border border-white/30 text-white font-bold text-xs sm:text-sm hover:bg-cyan-500/40 backdrop-blur-md flex items-center gap-1.5 cursor-pointer"
           >
             <Sparkles className="w-4 h-4 text-cyan-200" />
             <span>Ask ARKA AI</span>
@@ -63,12 +67,15 @@ export default function DashboardView() {
         </div>
       </div>
 
+      {/* Global Active Route Indicator Banner */}
+      <ActiveRouteIndicator />
+
       {/* 6 Information Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         <StatCard
           title={t('activeShipments')}
           value="24"
-          subtitle="4 in mountain transit"
+          subtitle={`4 near ${currentRouteResult.sourceCity}`}
           icon={Truck}
           accentColor="blue"
           badgeText="100% On-Grid"
@@ -76,42 +83,42 @@ export default function DashboardView() {
         />
         <StatCard
           title={t('presentWeather')}
-          value="26°C"
-          subtitle="Mild monsoon showers"
+          value={`${primaryWeather.temp}°C`}
+          subtitle={primaryWeather.condition}
           icon={CloudRain}
           accentColor="cyan"
-          badgeText="Wet Track"
+          badgeText={primaryWeather.rainMm > 20 ? 'Heavy Rain' : 'Active Weather'}
           onClick={() => setActiveView('weather')}
         />
         <StatCard
           title={t('presentTraffic')}
-          value="72%"
-          subtitle="Heavy: Dimapur-Kohima"
+          value={`${currentRouteResult.trafficPercent}%`}
+          subtitle={`${currentRouteResult.sourceCity} ➔ ${currentRouteResult.destCity}`}
           icon={Activity}
           accentColor="amber"
-          badgeText="Moderate Congestion"
+          badgeText={currentRouteResult.trafficPercent > 35 ? 'Moderate Flow' : 'Free Flow'}
         />
         <StatCard
           title={t('activeRisks')}
-          value="4"
-          subtitle="1 High: Dima Hasao"
+          value={String(routeRisks.length)}
+          subtitle={topRisks[0] ? `${topRisks[0].severity}: ${topRisks[0].category}` : 'Clear Corridor'}
           icon={AlertTriangle}
           accentColor="red"
-          badgeText="Action Required"
+          badgeText={topRisks.some((r) => r.severity === 'HIGH') ? 'Action Required' : 'Monitored'}
           onClick={() => setActiveView('risks')}
         />
         <StatCard
           title={t('averageETA')}
-          value="4.2 hrs"
-          subtitle="Within 12m margin"
+          value={currentRouteResult.eta}
+          subtitle={`${currentRouteResult.distanceKm} km verified road`}
           icon={Clock}
           accentColor="green"
-          badgeText="94% Efficiency"
+          badgeText={`${currentRouteResult.routeScore}% Score`}
         />
         <StatCard
           title={t('estimatedCost')}
-          value="₹3,450"
-          subtitle="Avg fuel + tolls"
+          value={`₹${currentRouteResult.estimatedCost}`}
+          subtitle={`${currentRouteResult.vehicle?.name || 'Mini Truck'} + tolls`}
           icon={IndianRupee}
           accentColor="purple"
           badgeText="Optimized"
@@ -127,24 +134,24 @@ export default function DashboardView() {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                 <h3 className="font-bold text-slate-800 text-sm sm:text-base">
-                  Primary Corridor: Guwahati (Assam) ⇄ Imphal (Manipur)
+                  Primary Corridor: {currentRouteResult.sourceCity} ({currentRouteResult.sourceState}) ⇄ {currentRouteResult.destCity} ({currentRouteResult.destState})
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Traffic status, real-time signal timers & toll gate plaza monitoring
+                {currentRouteResult.distanceKm} km • {currentRouteResult.eta} • Traffic status, signal timers & toll plaza monitoring
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowAltRoute(!showAltRoute)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                   showAltRoute
                     ? 'bg-amber-500 text-white border-amber-500'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                {showAltRoute ? 'Hide Alt Route' : 'Show Alt NH-37 Route'}
+                {showAltRoute ? 'Hide Alt Route' : 'Show Alt Corridor'}
               </button>
             </div>
           </div>
@@ -153,7 +160,6 @@ export default function DashboardView() {
           <NortheastInteractiveMap
             highlightRoute={true}
             showAlternative={showAltRoute}
-            activeShipmentPoint={{ x: 405, y: 340, label: 'ARKA-AS-9021 (Dimapur)' }}
             heightClass="h-[380px] sm:h-[460px]"
           />
 
@@ -162,19 +168,19 @@ export default function DashboardView() {
             {/* Traffic Signal box */}
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
               <p className="font-bold text-slate-700 flex items-center gap-1.5">
-                <span>🚦 Live Traffic Signals</span>
+                <span>🚦 Corridor Traffic Signals</span>
               </p>
               <div className="space-y-0.5 text-slate-600">
                 <div className="flex justify-between">
-                  <span>Khanapara Junction:</span>
+                  <span>{currentRouteResult.sourceCity} Exit:</span>
                   <span className="font-semibold text-emerald-600">30 sec</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Jorabat Intersection:</span>
+                  <span>Mid-Corridor Junction:</span>
                   <span className="font-semibold text-amber-600">45 sec</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Dimapur Rail Gate:</span>
+                  <span>{currentRouteResult.destCity} Entry:</span>
                   <span className="font-semibold text-emerald-600">20 sec</span>
                 </div>
               </div>
@@ -187,16 +193,16 @@ export default function DashboardView() {
               </p>
               <div className="space-y-0.5 text-slate-600">
                 <div className="flex justify-between">
-                  <span>Madanpur Plaza:</span>
-                  <span className="font-semibold text-blue-700">₹120</span>
+                  <span>Toll Plazas Count:</span>
+                  <span className="font-semibold text-blue-700">{currentRouteResult.tollGatesCount} plazas</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Nazirakhat Plaza:</span>
-                  <span className="font-semibold text-blue-700">₹85</span>
+                  <span>Total Toll Fee:</span>
+                  <span className="font-semibold text-blue-700">₹{currentRouteResult.tollCost}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Manderdisa Plaza:</span>
-                  <span className="font-semibold text-blue-700">₹95</span>
+                  <span>FASTag Lane:</span>
+                  <span className="font-semibold text-emerald-600">Active & Automated</span>
                 </div>
               </div>
             </div>
@@ -207,18 +213,16 @@ export default function DashboardView() {
                 <span>⚠️ Corridor Advisories</span>
               </p>
               <div className="space-y-0.5 text-slate-600">
-                <div className="flex justify-between">
-                  <span>Dima Hasao Hill:</span>
-                  <StatusBadge level="HIGH" text="Landslide" size="sm" />
-                </div>
-                <div className="flex justify-between">
-                  <span>Kaziranga NH-37:</span>
-                  <StatusBadge level="MEDIUM" text="40 km/h" size="sm" />
-                </div>
-                <div className="flex justify-between">
-                  <span>Saraighat Bridge:</span>
-                  <StatusBadge level="MEDIUM" text="&lt;15 Ton" size="sm" />
-                </div>
+                {topRisks.length > 0 ? (
+                  topRisks.map((risk) => (
+                    <div key={risk.id} className="flex justify-between items-center">
+                      <span className="truncate max-w-[130px]">{risk.category}:</span>
+                      <StatusBadge level={risk.severity} text={risk.severity} size="sm" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-500 italic">No critical hazards reported</div>
+                )}
               </div>
             </div>
           </div>
@@ -235,27 +239,27 @@ export default function DashboardView() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-sm">Present Weather</h3>
-                  <p className="text-[11px] text-slate-500">Guwahati & Hill Corridors</p>
+                  <p className="text-[11px] text-slate-500">{primaryWeather.city}, {primaryWeather.state}</p>
                 </div>
               </div>
-              <span className="text-2xl font-black text-slate-900">26°C</span>
+              <span className="text-2xl font-black text-slate-900">{primaryWeather.temp}°C</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                 <Droplets className="w-4 h-4 mx-auto text-blue-500 mb-1" />
                 <p className="text-[10px] text-slate-500">Rainfall</p>
-                <p className="font-bold text-slate-800">4.2 mm/hr</p>
+                <p className="font-bold text-slate-800">{primaryWeather.rainMm} mm/hr</p>
               </div>
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                 <Wind className="w-4 h-4 mx-auto text-cyan-500 mb-1" />
                 <p className="text-[10px] text-slate-500">Wind</p>
-                <p className="font-bold text-slate-800">14 km/h</p>
+                <p className="font-bold text-slate-800">{primaryWeather.windKmh} km/h</p>
               </div>
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                 <Eye className="w-4 h-4 mx-auto text-amber-500 mb-1" />
                 <p className="text-[10px] text-slate-500">Visibility</p>
-                <p className="font-bold text-slate-800">3.8 km</p>
+                <p className="font-bold text-slate-800">{primaryWeather.visibilityKm} km</p>
               </div>
             </div>
 
@@ -266,7 +270,7 @@ export default function DashboardView() {
                 <span>Weather Logistics Impact Alert</span>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed">
-                Intermittent showers between Sonapur and Nagaon. Expected transit delay of ~18 minutes for heavy vehicles.
+                {primaryWeather.logisticsImpact} Expected transit delay of ~{primaryWeather.delayMin} minutes.
               </p>
             </div>
           </div>
@@ -276,39 +280,39 @@ export default function DashboardView() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-blue-600" />
-                <h4 className="font-bold text-sm text-blue-950">Recommended Route</h4>
+                <h4 className="font-bold text-sm text-blue-950">Active Corridor AI Review</h4>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
-                Route Score: 92/100
+                Route Score: {currentRouteResult.routeScore}/100
               </span>
             </div>
 
             <div className="space-y-1.5 text-xs text-slate-700">
               <div className="flex justify-between py-1 border-b border-blue-100/60">
-                <span className="text-slate-500">Route:</span>
-                <span className="font-semibold text-slate-900">NH-27 ➔ NH-29 Eastern Spine</span>
+                <span className="text-slate-500">Corridor:</span>
+                <span className="font-semibold text-slate-900">{currentRouteResult.sourceCity} ➔ {currentRouteResult.destCity}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100/60">
                 <span className="text-slate-500">Distance & ETA:</span>
-                <span className="font-semibold text-slate-900">485 km • ~11 hrs 30 mins</span>
+                <span className="font-semibold text-slate-900">{currentRouteResult.distanceKm} km • ~{currentRouteResult.eta}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-blue-100/60">
                 <span className="text-slate-500">Traffic Density:</span>
-                <span className="font-semibold text-emerald-700">34% (Low)</span>
+                <span className="font-semibold text-emerald-700">{currentRouteResult.trafficPercent}% ({currentRouteResult.trafficPercent > 35 ? 'Moderate' : 'Low'})</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-500">Road Accessibility:</span>
-                <span className="font-semibold text-blue-700">91% Accessible</span>
+                <span className="font-semibold text-blue-700">{currentRouteResult.accessibilityScore}% Accessible</span>
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-600 italic bg-white/70 p-2.5 rounded-xl border border-blue-100">
-              &ldquo;ARKA selected this route because it has lower traffic, lower risk and better accessibility for the selected vehicle.&rdquo;
+            <p className="text-[11px] text-slate-600 italic bg-white/70 p-2.5 rounded-xl border border-blue-100 leading-relaxed">
+              &ldquo;{currentRouteResult.reasoning}&rdquo;
             </p>
 
             <button
               onClick={() => setActiveView('route-opt')}
-              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5"
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               <span>Customize Route & Vehicle</span>
               <ArrowUpRight className="w-3.5 h-3.5" />

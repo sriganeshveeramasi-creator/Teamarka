@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
+import { RouteWeatherPoint } from '@/services/routeDataService';
 import {
   CloudRain,
   Wind,
@@ -15,23 +17,11 @@ import {
   MapPin,
 } from 'lucide-react';
 
-interface CityWeather {
-  city: string;
-  state: string;
-  temp: number;
-  condition: string;
-  rainMm: number;
-  windKmh: number;
-  visibilityKm: number;
-  logisticsImpact: string;
-  delayMin: number;
-  alertLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-}
-
-const NORTHEAST_WEATHER: CityWeather[] = [
+const REGIONAL_WEATHER: RouteWeatherPoint[] = [
   {
     city: 'Guwahati',
     state: 'Assam',
+    role: 'origin',
     temp: 28,
     condition: 'Partly Cloudy with Showers',
     rainMm: 6.5,
@@ -44,6 +34,7 @@ const NORTHEAST_WEATHER: CityWeather[] = [
   {
     city: 'Shillong',
     state: 'Meghalaya',
+    role: 'transit',
     temp: 18,
     condition: 'Heavy Hill Rain & Mist',
     rainMm: 42.0,
@@ -56,6 +47,7 @@ const NORTHEAST_WEATHER: CityWeather[] = [
   {
     city: 'Dimapur',
     state: 'Nagaland',
+    role: 'transit',
     temp: 29,
     condition: 'Humid & Overcast',
     rainMm: 12.0,
@@ -68,6 +60,7 @@ const NORTHEAST_WEATHER: CityWeather[] = [
   {
     city: 'Kohima',
     state: 'Nagaland',
+    role: 'transit',
     temp: 20,
     condition: 'Dense Fog & Light Rain',
     rainMm: 18.5,
@@ -80,6 +73,7 @@ const NORTHEAST_WEATHER: CityWeather[] = [
   {
     city: 'Imphal',
     state: 'Manipur',
+    role: 'destination',
     temp: 25,
     condition: 'Intermittent Showers',
     rainMm: 14.0,
@@ -92,6 +86,7 @@ const NORTHEAST_WEATHER: CityWeather[] = [
   {
     city: 'Agartala',
     state: 'Tripura',
+    role: 'origin',
     temp: 31,
     condition: 'Scattered Clouds',
     rainMm: 2.0,
@@ -104,8 +99,21 @@ const NORTHEAST_WEATHER: CityWeather[] = [
 ];
 
 export default function WeatherIntelligenceView() {
-  const { t } = useApp();
-  const [selectedCity, setSelectedCity] = useState<CityWeather>(NORTHEAST_WEATHER[1]); // Shillong default
+  const { currentRouteResult, routeWeather, t } = useApp();
+  const [selectedCity, setSelectedCity] = useState<RouteWeatherPoint>(routeWeather.primaryWeather);
+
+  // Sync selected city when active route changes
+  useEffect(() => {
+    setSelectedCity(routeWeather.primaryWeather);
+  }, [routeWeather.primaryWeather.city]);
+
+  // Combine corridor points with regional reference points (deduplicating by city name)
+  const combinedWeatherList = [
+    ...routeWeather.routeWeatherPoints,
+    ...REGIONAL_WEATHER.filter(
+      (rw) => !routeWeather.routeWeatherPoints.some((cp) => cp.city.toLowerCase() === rw.city.toLowerCase())
+    ),
+  ];
 
   return (
     <div className="space-y-6">
@@ -121,16 +129,19 @@ export default function WeatherIntelligenceView() {
           {t('weather')}
         </h1>
         <p className="text-xs sm:text-sm text-cyan-100 max-w-2xl mt-1">
-          Precipitation rates, cloud cover, and visibility predictions affecting mountain passes and river bridges.
+          Precipitation rates, cloud cover, and visibility predictions affecting {currentRouteResult.sourceCity} ➔ {currentRouteResult.destCity} and regional transit passes.
         </p>
       </div>
+
+      {/* Active Route Corridor Banner */}
+      <ActiveRouteIndicator />
 
       {/* Featured Weather Impact Card */}
       <div className="bg-gradient-to-br from-blue-500 via-cyan-600 to-teal-500 rounded-3xl p-6 text-white shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="px-3 py-1 rounded-full bg-white/20 text-xs font-bold uppercase backdrop-blur-xs">
-              Primary Corridor Weather Focus: {selectedCity.city}, {selectedCity.state}
+              Corridor Focus: {selectedCity.city}, {selectedCity.state}
             </span>
             <h2 className="text-3xl sm:text-4xl font-black mt-2">{selectedCity.temp}°C</h2>
             <p className="text-sm font-medium text-cyan-100 mt-0.5">{selectedCity.condition}</p>
@@ -174,42 +185,56 @@ export default function WeatherIntelligenceView() {
 
       {/* Regional City Weather Cards Grid */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-          Weather Conditions Along Key Northeast Corridors
+        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
+          <span>Weather Along Active Corridor & Northeast Key Hubs</span>
+          <span className="text-xs text-blue-600 font-semibold normal-case">Tap card to inspect telemetry</span>
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {NORTHEAST_WEATHER.map((w) => (
-            <div
-              key={w.city}
-              onClick={() => setSelectedCity(w)}
-              className={`p-5 rounded-3xl border transition-all cursor-pointer ${
-                selectedCity.city === w.city
-                  ? 'bg-blue-50/80 border-blue-400 shadow-md ring-2 ring-blue-200'
-                  : 'bg-white border-slate-200 hover:border-blue-200 shadow-xs'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h4 className="font-bold text-slate-900 text-base">{w.city}</h4>
-                  <p className="text-xs text-slate-500">{w.state}</p>
+          {combinedWeatherList.map((w) => {
+            const isCorridorPoint = routeWeather.routeWeatherPoints.some(
+              (cp) => cp.city.toLowerCase() === w.city.toLowerCase()
+            );
+            return (
+              <div
+                key={w.city}
+                onClick={() => setSelectedCity(w)}
+                className={`p-5 rounded-3xl border transition-all cursor-pointer ${
+                  selectedCity.city === w.city
+                    ? 'bg-blue-50/80 border-blue-400 shadow-md ring-2 ring-blue-200'
+                    : 'bg-white border-slate-200 hover:border-blue-200 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-bold text-slate-900 text-base">{w.city}</h4>
+                      {isCorridorPoint && (
+                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded-md uppercase tracking-wider">
+                          Active Corridor
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500">{w.state}</p>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{w.temp}°C</span>
                 </div>
-                <span className="text-2xl font-black text-slate-900">{w.temp}°C</span>
-              </div>
 
-              <p className="text-xs text-slate-600 mb-3 font-medium">{w.condition}</p>
+                <p className="text-xs text-slate-600 mb-3 font-medium">{w.condition}</p>
 
-              <div className="grid grid-cols-3 gap-1 py-2 px-2.5 bg-slate-50 rounded-xl text-center text-[11px] text-slate-600 mb-3">
-                <div>Rain: <span className="font-bold">{w.rainMm}mm</span></div>
-                <div>Wind: <span className="font-bold">{w.windKmh}k/h</span></div>
-                <div>Vis: <span className="font-bold">{w.visibilityKm}km</span></div>
-              </div>
+                <div className="grid grid-cols-3 gap-1 py-2 px-2.5 bg-slate-50 rounded-xl text-center text-[11px] text-slate-600 mb-3">
+                  <div>Rain: <span className="font-bold">{w.rainMm}mm</span></div>
+                  <div>Wind: <span className="font-bold">{w.windKmh}k/h</span></div>
+                  <div>Vis: <span className="font-bold">{w.visibilityKm}km</span></div>
+                </div>
 
-              <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-100 text-[11px] text-amber-900">
-                <span className="font-bold">Logistics Delay:</span> +{w.delayMin} mins
+                <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-100 text-[11px] text-amber-900 flex justify-between">
+                  <span className="font-bold">Logistics Delay:</span>
+                  <span>+{w.delayMin} mins</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

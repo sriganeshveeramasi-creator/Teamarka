@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import NortheastInteractiveMap from '@/components/map/NortheastInteractiveMap';
 import StatusBadge from '@/components/common/StatusBadge';
+import ActiveRouteIndicator from '@/components/common/ActiveRouteIndicator';
 import {
   Bot,
   Mic,
@@ -38,15 +39,8 @@ interface ChatMessage {
   };
 }
 
-const SAMPLE_QUESTIONS = [
-  "Hey ARKA, find the safest route from Guwahati to Imphal.",
-  "Hey ARKA, what is the traffic situation?",
-  "Hey ARKA, find the nearest hospital.",
-  "Hey ARKA, is there any landslide alert in Dima Hasao?",
-];
-
 export default function ArkaAiAssistantView() {
-  const { setActiveView, t } = useApp();
+  const { currentRouteResult, routeRisks, routeEmergencyData, setActiveView, t } = useApp();
 
   const [inputMessage, setInputMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -55,10 +49,17 @@ export default function ArkaAiAssistantView() {
     {
       id: 'm-1',
       sender: 'arka',
-      text: "Hello! I am ARKA AI, your specialized logistics & accessibility assistant for Northeast India. How can I help you today?",
+      text: `Hello! I am ARKA AI, your specialized logistics & accessibility assistant for Northeast India. I am currently monitoring the active corridor: ${currentRouteResult.sourceCity} (${currentRouteResult.sourceState}) ➔ ${currentRouteResult.destCity} (${currentRouteResult.destState}). How can I assist your convoy today?`,
       time: 'Just now',
     },
   ]);
+
+  const sampleQuestions = [
+    `Hey ARKA, find the safest route from ${currentRouteResult.sourceCity} to ${currentRouteResult.destCity}.`,
+    `Hey ARKA, what is the traffic situation on this corridor?`,
+    `Hey ARKA, find the nearest hospital along this route.`,
+    `Hey ARKA, is there any landslide alert reported?`,
+  ];
 
   const handleSendMessage = (textToSend?: string) => {
     const query = textToSend || inputMessage;
@@ -74,51 +75,72 @@ export default function ArkaAiAssistantView() {
     setMessages((prev) => [...prev, userMsg]);
     if (!textToSend) setInputMessage('');
 
-    // Simulate ARKA AI intelligent response
+    // Simulate ARKA AI intelligent response referencing active corridor
     setTimeout(() => {
       let arkaResponse: ChatMessage;
-
       const lower = query.toLowerCase();
 
-      if (lower.includes('guwahati to imphal') || lower.includes('route') || lower.includes('safest route')) {
+      if (
+        lower.includes('route') ||
+        lower.includes('safest route') ||
+        lower.includes(currentRouteResult.sourceCity.toLowerCase()) ||
+        lower.includes(currentRouteResult.destCity.toLowerCase())
+      ) {
         arkaResponse = {
           id: `msg-${Date.now() + 1}`,
           sender: 'arka',
-          text: "I analyzed the terrain, slope elevation, and live telemetry. Here is the safest recommended corridor for your transport:",
+          text: `I analyzed the road network, elevation profile, and active telemetry for your active corridor (${currentRouteResult.sourceCity} to ${currentRouteResult.destCity}). Here is the verified route configuration:`,
           time: 'Just now',
           hasRouteCard: true,
           routeData: {
-            source: 'Guwahati, Assam',
-            destination: 'Imphal, Manipur',
-            distance: '485 km',
-            eta: '11 hrs 30 mins',
-            traffic: '34% (Low)',
-            risk: 'LOW',
-            accessibility: '91%',
-            score: 92,
-            explanation:
-              'ARKA selected the NH-27 / NH-29 Eastern Spine corridor because it features stabilized road culverts, lower traffic congestion, and 24/7 recovery stations compared to the Dima Hasao hill bypass.',
+            source: `${currentRouteResult.sourceCity}, ${currentRouteResult.sourceState}`,
+            destination: `${currentRouteResult.destCity}, ${currentRouteResult.destState}`,
+            distance: `${currentRouteResult.distanceKm} km`,
+            eta: currentRouteResult.eta,
+            traffic: `${currentRouteResult.trafficPercent}% (${currentRouteResult.trafficPercent > 35 ? 'Moderate' : 'Low'})`,
+            risk: currentRouteResult.landslideRisk,
+            accessibility: `${currentRouteResult.accessibilityScore}%`,
+            score: currentRouteResult.routeScore,
+            explanation: currentRouteResult.reasoning,
           },
         };
       } else if (lower.includes('traffic')) {
         arkaResponse = {
           id: `msg-${Date.now() + 1}`,
           sender: 'arka',
-          text: "Current Northeast Corridor Traffic Status: NH-27 between Guwahati and Nagaon is flowing smoothly with low density (34%). However, Dimapur to Kohima hill ascent has heavy convoy congestion (72%) with an approximate 25-minute delay. Drive with standard mountain headway.",
+          text: `Current Corridor Traffic Status: The road between ${currentRouteResult.sourceCity} and ${currentRouteResult.destCity} currently shows ${currentRouteResult.trafficPercent}% density. Real-time road monitoring indicates ${currentRouteResult.trafficPercent > 35 ? 'moderate flow along hill stretches; drive with cautious headway.' : 'smooth transit conditions with minimal bottlenecking.'} Traffic signals: ${currentRouteResult.trafficSignalsCount} synchronized.`,
           time: 'Just now',
         };
-      } else if (lower.includes('hospital')) {
+      } else if (lower.includes('hospital') || lower.includes('medical') || lower.includes('trauma')) {
+        const hosp = routeEmergencyData.nearestHospital;
         arkaResponse = {
           id: `msg-${Date.now() + 1}`,
           sender: 'arka',
-          text: "Nearest primary trauma hospital along the corridor is Guwahati Medical College & Hospital (GMCH), located 4.2 km away (approx. 12 mins travel time). In the eastern sector, Regional Institute of Medical Sciences (RIMS) in Imphal is fully operational with 24/7 ICU support.",
+          text: `The nearest primary emergency trauma facility for the ${currentRouteResult.sourceCity} ➔ ${currentRouteResult.destCity} corridor is ${hosp.name} (${hosp.location}), located ${hosp.distanceKm} km away (~${hosp.travelTime} ETA). Status: ${hosp.status}. Emergency Hotline: ${hosp.phone}.`,
           time: 'Just now',
         };
+      } else if (lower.includes('landslide') || lower.includes('hazard') || lower.includes('risk')) {
+        if (routeRisks.length > 0) {
+          const r = routeRisks[0];
+          arkaResponse = {
+            id: `msg-${Date.now() + 1}`,
+            sender: 'arka',
+            text: `Hazard Alert along ${currentRouteResult.sourceCity} ➔ ${currentRouteResult.destCity}: ${r.category} alert (${r.severity} Severity, ${r.percentage}% probability) reported at ${r.location}. Observation: ${r.description} Advisory: ${r.advisory}`,
+            time: 'Just now',
+          };
+        } else {
+          arkaResponse = {
+            id: `msg-${Date.now() + 1}`,
+            sender: 'arka',
+            text: `Terrain telemetry indicates normal conditions along ${currentRouteResult.sourceCity} ➔ ${currentRouteResult.destCity}. No severe slope failures or road blockages are currently flagged by PWD or Border Roads patrols.`,
+            time: 'Just now',
+          };
+        }
       } else {
         arkaResponse = {
           id: `msg-${Date.now() + 1}`,
           sender: 'arka',
-          text: `I have received your request regarding: "${query}". I am continuously monitoring highway tolls, rainfall indices, and road conditions across all 8 Northeast states to ensure safe logistics.`,
+          text: `I have received your request regarding: "${query}". I am actively tracking distance (${currentRouteResult.distanceKm} km), travel time (${currentRouteResult.eta}), weather risks, and fuel costs for your ${currentRouteResult.sourceCity} ➔ ${currentRouteResult.destCity} corridor (${currentRouteResult.vehicle?.name || 'Mini Truck'}).`,
           time: 'Just now',
         };
       }
@@ -134,7 +156,6 @@ export default function ArkaAiAssistantView() {
       return;
     }
 
-    // Try browser SpeechRecognition if available
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -169,7 +190,7 @@ export default function ArkaAiAssistantView() {
     setIsListening(true);
     setTimeout(() => {
       setIsListening(false);
-      const randomQuery = SAMPLE_QUESTIONS[0];
+      const randomQuery = sampleQuestions[0];
       setInputMessage(randomQuery);
       handleSendMessage(randomQuery);
     }, 1800);
@@ -198,144 +219,167 @@ export default function ArkaAiAssistantView() {
 
         {/* Voice wake toggle chip */}
         <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/20 text-xs">
-          <Volume2 className="w-4 h-4 text-cyan-300" />
-          <span className="text-purple-100 font-medium">Wake Phrase:</span>
-          <span className="font-bold text-white font-mono">&ldquo;Hey ARKA&rdquo;</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-1" />
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          <span className="font-semibold text-purple-100">
+            Voice Wake &ldquo;Hey ARKA&rdquo; Active
+          </span>
         </div>
       </div>
 
-      {/* Suggested Quick Prompts */}
-      <div className="space-y-1.5">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
-          Quick Prompts
-        </p>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          {SAMPLE_QUESTIONS.map((q) => (
-            <button
-              key={q}
-              onClick={() => handleSendMessage(q)}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-700 border border-slate-200 hover:border-purple-300 shrink-0 font-medium shadow-2xs transition-all"
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Active Route Corridor Banner */}
+      <ActiveRouteIndicator />
 
-      {/* Chat Messages Container */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 min-h-[380px] max-h-[500px] overflow-y-auto space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+      {/* Chat Conversation Box */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4 min-h-[460px] flex flex-col justify-between">
+        {/* Messages Feed */}
+        <div className="space-y-4 overflow-y-auto max-h-[500px] pr-1">
+          {messages.map((msg) => (
             <div
-              className={`max-w-2xl rounded-2xl p-4 text-xs sm:text-sm space-y-3 ${
-                msg.sender === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-none shadow-xs'
-                  : 'bg-slate-50 text-slate-800 rounded-bl-none border border-slate-200 shadow-xs'
+              key={msg.id}
+              className={`flex items-start gap-3 ${
+                msg.sender === 'user' ? 'flex-row-reverse' : ''
               }`}
             >
-              <div className="flex items-center justify-between gap-4 text-[10px] opacity-70 pb-1">
-                <span className="font-bold uppercase tracking-wider">
-                  {msg.sender === 'user' ? 'You' : 'ARKA AI Intelligence'}
-                </span>
-                <span>{msg.time}</span>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                  msg.sender === 'user'
+                    ? 'bg-blue-600 text-white font-bold'
+                    : 'bg-purple-600 text-white'
+                }`}
+              >
+                {msg.sender === 'user' ? 'YOU' : <Bot className="w-4 h-4" />}
               </div>
 
-              <p className="leading-relaxed font-medium">{msg.text}</p>
+              <div
+                className={`max-w-[85%] sm:max-w-[75%] space-y-2 text-xs sm:text-sm ${
+                  msg.sender === 'user'
+                    ? 'bg-blue-600 text-white p-3.5 rounded-2xl rounded-tr-xs'
+                    : 'bg-slate-50 border border-slate-200 text-slate-800 p-4 rounded-2xl rounded-tl-xs shadow-xs'
+                }`}
+              >
+                <p className="leading-relaxed">{msg.text}</p>
 
-              {/* Dynamic Route Recommendation Card inside AI Chat */}
-              {msg.hasRouteCard && msg.routeData && (
-                <div className="bg-white rounded-2xl border border-purple-200 p-4 text-slate-800 space-y-3 shadow-xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                    <div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase">
-                        AI Recommended Corridor
-                      </span>
-                      <h4 className="font-bold text-sm text-slate-900 mt-1">
-                        {msg.routeData.source} ➔ {msg.routeData.destination}
-                      </h4>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-xs font-black text-emerald-700">
+                {/* Embedded Route Recommendation Card */}
+                {msg.hasRouteCard && msg.routeData && (
+                  <div className="mt-3 p-3 bg-white rounded-xl border border-blue-200 shadow-xs space-y-2 text-slate-800">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900">
+                        <Navigation className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Recommended Corridor: {msg.routeData.source} ➔ {msg.routeData.destination}</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
                         Score: {msg.routeData.score}/100
                       </span>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className="p-2 bg-slate-50 rounded-xl">
-                      <span className="text-slate-400 block text-[10px]">Distance</span>
-                      <span className="font-bold">{msg.routeData.distance}</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-center">
+                      <div className="p-1.5 bg-slate-50 rounded-lg">
+                        <span className="text-slate-400 block text-[9px]">Distance</span>
+                        <span className="font-bold text-slate-900">{msg.routeData.distance}</span>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 rounded-lg">
+                        <span className="text-slate-400 block text-[9px]">ETA</span>
+                        <span className="font-bold text-blue-700">{msg.routeData.eta}</span>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 rounded-lg">
+                        <span className="text-slate-400 block text-[9px]">Traffic</span>
+                        <span className="font-bold text-emerald-700">{msg.routeData.traffic}</span>
+                      </div>
+                      <div className="p-1.5 bg-slate-50 rounded-lg">
+                        <span className="text-slate-400 block text-[9px]">Terrain Risk</span>
+                        <StatusBadge level={msg.routeData.risk} size="sm" />
+                      </div>
                     </div>
-                    <div className="p-2 bg-slate-50 rounded-xl">
-                      <span className="text-slate-400 block text-[10px]">ETA</span>
-                      <span className="font-bold text-blue-600">{msg.routeData.eta}</span>
-                    </div>
-                    <div className="p-2 bg-slate-50 rounded-xl">
-                      <span className="text-slate-400 block text-[10px]">Traffic</span>
-                      <span className="font-bold text-emerald-600">{msg.routeData.traffic}</span>
-                    </div>
-                    <div className="p-2 bg-slate-50 rounded-xl">
-                      <span className="text-slate-400 block text-[10px]">Accessibility</span>
-                      <span className="font-bold text-purple-700">{msg.routeData.accessibility}</span>
-                    </div>
-                  </div>
 
-                  {/* Route Explanation */}
-                  <div className="p-3 bg-purple-50 rounded-xl text-xs text-purple-950 space-y-1">
-                    <p className="font-bold text-purple-900 text-[11px]">Why ARKA selected this route:</p>
-                    <p className="leading-relaxed">{msg.routeData.explanation}</p>
-                  </div>
+                    <p className="text-[11px] text-slate-600 italic bg-blue-50/50 p-2 rounded-lg leading-relaxed">
+                      &ldquo;{msg.routeData.explanation}&rdquo;
+                    </p>
 
-                  {/* Compact Map Preview */}
-                  <div className="rounded-xl overflow-hidden border border-slate-200">
-                    <NortheastInteractiveMap heightClass="h-[220px]" />
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={() => setActiveView('route-opt')}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                      >
+                        <span>Open in Route Optimizer</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                <span
+                  className={`block text-[10px] mt-1 ${
+                    msg.sender === 'user' ? 'text-blue-200 text-right' : 'text-slate-400'
+                  }`}
+                >
+                  {msg.time}
+                </span>
+              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Bottom Area: Sample Questions + Input Bar */}
+        <div className="space-y-3 pt-3 border-t border-slate-100">
+          {/* Quick Chip Prompts */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-purple-500" /> Prompts:
+            </span>
+            {sampleQuestions.map((q, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSendMessage(q)}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-purple-50 hover:text-purple-700 text-slate-600 rounded-xl font-medium shrink-0 transition-colors cursor-pointer text-xs"
+              >
+                {q}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Voice & Text Input Box */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-md flex items-center gap-2">
-        {/* Microphone Button */}
-        <button
-          type="button"
-          onClick={toggleListening}
-          className={`p-3 rounded-xl transition-all flex items-center justify-center shrink-0 ${
-            isListening
-              ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-200'
-              : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-          }`}
-          title={isListening ? 'Listening to voice...' : 'Speak to ARKA ("Hey ARKA...")'}
-        >
-          {isListening ? <Mic className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-        </button>
+          {/* Text & Voice Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center gap-2"
+          >
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Ask ARKA AI anything about Northeast routes, rain delays, hazards..."
+                className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white shadow-inner"
+              />
+            </div>
 
-        {/* Text Input */}
-        <input
-          type="text"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder={isListening ? 'Listening to speech...' : t('askArka')}
-          className="flex-1 px-3 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
-        />
+            {/* Mic button */}
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`p-3 rounded-2xl font-bold transition-all shadow-sm cursor-pointer ${
+                isListening
+                  ? 'bg-rose-600 text-white animate-pulse'
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+              }`}
+              title="Voice Input"
+            >
+              {isListening ? <Mic className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+            </button>
 
-        {/* Send Button */}
-        <button
-          type="button"
-          onClick={() => handleSendMessage()}
-          className="p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors shrink-0"
-        >
-          <Send className="w-4 h-4" />
-        </button>
+            {/* Send button */}
+            <button
+              type="submit"
+              disabled={!inputMessage.trim()}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-xs sm:text-sm hover:from-purple-700 hover:to-blue-700 shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <span>Send</span>
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

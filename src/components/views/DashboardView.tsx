@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export default function DashboardView() {
-  const { currentRouteResult, routeWeather, routeRisks, setActiveView, t } = useApp();
+  const { currentRouteResult, routeWeather, routeRisks, setActiveView, t, user } = useApp();
   const [showAltRoute, setShowAltRoute] = useState(false);
 
   const primaryWeather = routeWeather.primaryWeather;
@@ -64,6 +64,67 @@ export default function DashboardView() {
             <Sparkles className="w-4 h-4 text-cyan-200" />
             <span>Ask ARKA AI</span>
           </button>
+        </div>
+      </div>
+
+      {/* Authenticated User Session Banner */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white font-black text-lg flex items-center justify-center shadow-xs">
+            {user?.name ? user.name.slice(0, 2).toUpperCase() : 'NE'}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                Welcome back, {user?.name || 'Logistics Officer'}
+              </h2>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${
+                  user?.role === 'admin'
+                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                    : user?.role === 'officer'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}
+              >
+                {user?.role ? `${user.role.toUpperCase()} ACCESS` : 'VERIFIED USER'}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Active Session
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Account: <span className="font-mono text-slate-700 font-semibold">{user?.email || user?.phone || 'admin@arka-ne.gov.in'}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
+          <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+            <span className="text-slate-400 block text-[10px] font-bold uppercase">Last Login Activity</span>
+            <span className="font-semibold text-slate-700">
+              {user?.lastLogin
+                ? new Date(user.lastLogin).toLocaleString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                : 'Current Active Session'}
+            </span>
+          </div>
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setActiveView('admin')}
+              className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Admin Portal</span>
+            </button>
+          )}
         </div>
       </div>
 

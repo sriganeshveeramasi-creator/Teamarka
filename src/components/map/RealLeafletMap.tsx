@@ -34,6 +34,12 @@ export interface NortheastInteractiveMapProps {
   interactive?: boolean;
   heightClass?: string;
   zoomLevel?: 'state' | 'district' | 'local';
+  externalShowTraffic?: boolean;
+  externalShowTolls?: boolean;
+  externalShowSignals?: boolean;
+  externalShowRisks?: boolean;
+  externalShowFacilities?: boolean;
+  focusedPoint?: { x?: number; y?: number; lat?: number; lng?: number; label?: string };
 }
 
 export default function RealLeafletMap({
@@ -43,19 +49,45 @@ export default function RealLeafletMap({
   emergencyFocus = false,
   interactive = true,
   heightClass = "h-[460px] md:h-[540px]",
+  externalShowTraffic,
+  externalShowTolls,
+  externalShowSignals,
+  externalShowRisks,
+  externalShowFacilities,
+  focusedPoint,
 }: NortheastInteractiveMapProps) {
   const { currentRouteResult, isRouteCalculating, routeError } = useApp();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   // Layer toggles
-  const [showTraffic, setShowTraffic] = useState<boolean>(true);
-  const [showTolls, setShowTolls] = useState<boolean>(true);
-  const [showSignals, setShowSignals] = useState<boolean>(true);
-  const [showRisks, setShowRisks] = useState<boolean>(true);
-  const [showServices, setShowServices] = useState<boolean>(false);
+  const [showTraffic, setShowTraffic] = useState<boolean>(externalShowTraffic !== undefined ? externalShowTraffic : true);
+  const [showTolls, setShowTolls] = useState<boolean>(externalShowTolls !== undefined ? externalShowTolls : true);
+  const [showSignals, setShowSignals] = useState<boolean>(externalShowSignals !== undefined ? externalShowSignals : true);
+  const [showRisks, setShowRisks] = useState<boolean>(externalShowRisks !== undefined ? externalShowRisks : true);
+  const [showServices, setShowServices] = useState<boolean>(externalShowFacilities !== undefined ? externalShowFacilities : false);
   const [showAltRoute, setShowAltRoute] = useState<boolean>(showAlternative);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (externalShowTraffic !== undefined) setShowTraffic(externalShowTraffic);
+  }, [externalShowTraffic]);
+
+  useEffect(() => {
+    if (externalShowTolls !== undefined) setShowTolls(externalShowTolls);
+  }, [externalShowTolls]);
+
+  useEffect(() => {
+    if (externalShowSignals !== undefined) setShowSignals(externalShowSignals);
+  }, [externalShowSignals]);
+
+  useEffect(() => {
+    if (externalShowRisks !== undefined) setShowRisks(externalShowRisks);
+  }, [externalShowRisks]);
+
+  useEffect(() => {
+    if (externalShowFacilities !== undefined) setShowServices(externalShowFacilities);
+  }, [externalShowFacilities]);
 
   // Authoritative Layer Groups (Req #5 & #13)
   const primaryRouteLayerGroupRef = useRef<L.LayerGroup | null>(null);

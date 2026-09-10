@@ -80,13 +80,27 @@ export interface RouteCalculationOptions {
   currentLocationCoords?: { lat: number; lng: number; label?: string };
 }
 
+export type UserRole = 'user' | 'officer' | 'admin';
+
+export interface UserProfile {
+  id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: UserRole | string;
+  lastLogin?: string | null;
+}
+
 export interface AppContextType {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
   isAuthenticated: boolean;
-  user: { name: string; email: string; role: string } | null;
-  login: (identifier: string) => void;
-  logout: () => void;
+  user: UserProfile | null;
+  login: (userData: UserProfile) => void;
+  logout: () => Promise<void>;
+  checkSession: () => Promise<void>;
+  authMessage: string | null;
+  setAuthMessage: (msg: string | null) => void;
   language: Language;
   setLanguage: (lang: Language) => void;
   languages: LanguageOption[];
@@ -148,12 +162,27 @@ const defaultRouteResult: RouteCalcResult = {
   isAlternative: false,
 };
 
+const PROTECTED_VIEWS: AppView[] = [
+  'dashboard',
+  'route-opt',
+  'tracking',
+  'risks',
+  'weather',
+  'accessibility',
+  'northeast-map',
+  'arka-assistant',
+  'emergency',
+  'analytics',
+  'admin',
+];
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [activeView, setActiveView] = useState<AppView>('landing');
+  const [activeView, setActiveViewState] = useState<AppView>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [emergencyMode, setEmergencyMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -183,20 +212,98 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return dict[key] || TRANSLATIONS['en'][key] || key;
   };
 
-  const login = (identifier: string) => {
-    setIsAuthenticated(true);
-    setUser({
-      name: identifier.includes('@') ? identifier.split('@')[0] : 'Logistics Officer',
-      email: identifier.includes('@') ? identifier : `${identifier}@arka-ne.gov.in`,
-      role: 'Fleet Coordinator',
-    });
-    setActiveView('dashboard');
-  };
-
-  const logout = () => {
+  const checkSession = async () => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setIsAuthenticated(true);
+        setUser(data.user);
+        return;
+      }
+    } catch (e) {
+      // Ignore
+    }
     setIsAuthenticated(false);
     setUser(null);
-    setActiveView('landing');
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const data = await res.json();
+
+        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const requestedView = urlParams?.get('view') as AppView | null;
+
+        if (data.authenticated && data.user) {
+          setIsAuthenticated(true);
+          setUser(data.user);
+
+          if (requestedView) {
+            if (requestedView === 'admin' && data.user.role !== 'admin') {
+              setActiveViewState('dashboard');
+            } else {
+              setActiveViewState(requestedView);
+            }
+          } else {
+            setActiveViewState('dashboard');
+          }
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+
+          if (requestedView === 'login' || requestedView === 'landing' || requestedView === 'help') {
+            setActiveViewState(requestedView);
+          } else if (requestedView) {
+            setAuthMessage('Please login to access the requested view.');
+            setActiveViewState('login');
+          }
+        }
+      } catch (e) {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  const setActiveView = (view: AppView) => {
+    if (!isAuthenticated && PROTECTED_VIEWS.includes(view)) {
+      setAuthMessage('Authentication required: Please log in to access this portal.');
+      setActiveViewState('login');
+      return;
+    }
+
+    if (view === 'admin' && user?.role !== 'admin') {
+      setAuthMessage('Access Denied: Administrator role required to access the Admin Dashboard.');
+      setActiveViewState('dashboard');
+      return;
+    }
+
+    setAuthMessage(null);
+    setActiveViewState(view);
+  };
+
+  const login = (userData: UserProfile) => {
+    setIsAuthenticated(true);
+    setUser(userData);
+    setAuthMessage(null);
+    setActiveViewState('dashboard');
+  };
+
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {
+      // Ignore
+    }
+    setIsAuthenticated(false);
+    setUser(null);
+    setAuthMessage('You have logged out successfully.');
+    setActiveViewState('login');
     setEmergencyMode(false);
   };
 
@@ -390,6 +497,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         routeError,
         clearPreviousRoute,
         calculateRoute,
+        checkSession,
+        authMessage,
+        setAuthMessage,
         t,
       }}
     >

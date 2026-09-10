@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Language, TRANSLATIONS, LANGUAGES, LanguageOption } from '@/data/translations';
 import { HIGHWAY_ROUTES, HighwayRoute, VEHICLE_OPTIONS, VehicleOption } from '@/data/northeastData';
 
+import { resolveRouteGeometry, PREDEFINED_CORRIDORS } from '@/utils/corridorGeo';
+
 export type AppView =
   | 'landing'
   | 'login'
@@ -19,6 +21,18 @@ export type AppView =
   | 'analytics'
   | 'admin'
   | 'help';
+
+export interface ActiveRoute {
+  id: string;
+  source: string;
+  destination: string;
+  sourceCoords: [number, number];
+  destCoords: [number, number];
+  geometry: [number, number][];
+  distanceKm: number;
+  eta: string;
+  isCurrentLocation?: boolean;
+}
 
 export interface RouteCalcResult {
   sourceState: string;
@@ -42,27 +56,13 @@ export interface RouteCalcResult {
   isAlternative: boolean;
 }
 
-export type UserRole = 'user' | 'officer' | 'admin';
-
-export interface UserProfile {
-  id?: string;
-  name: string;
-  email: string;
-  phone?: string;
-  role: UserRole | string;
-  lastLogin?: string | null;
-}
-
 interface AppContextType {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
   isAuthenticated: boolean;
-  user: UserProfile | null;
-  login: (userData: UserProfile) => void;
-  logout: () => Promise<void>;
-  checkSession: () => Promise<void>;
-  authMessage: string | null;
-  setAuthMessage: (msg: string | null) => void;
+  user: { name: string; email: string; phone?: string; lastLogin?: string; role: string } | null;
+  login: (identifier: string) => void;
+  logout: () => void;
   language: Language;
   setLanguage: (lang: Language) => void;
   languages: LanguageOption[];
@@ -72,9 +72,24 @@ interface AppContextType {
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
   currentRouteResult: RouteCalcResult;
+  activeRoute: ActiveRoute;
+  setActiveRoute: (route: ActiveRoute) => void;
+  setRouteByCities: (source: string, destination: string, isCurrentLocation?: boolean, customCoords?: [number, number]) => void;
   calculateRoute: (sourceState: string, sourceCity: string, destState: string, destCity: string, vehicleId: string) => void;
   t: (key: string) => string;
 }
+
+const defaultActiveRoute: ActiveRoute = {
+  id: 'guwahati-imphal',
+  source: 'Guwahati',
+  destination: 'Imphal',
+  sourceCoords: [26.1445, 91.7362],
+  destCoords: [24.8170, 93.9368],
+  geometry: PREDEFINED_CORRIDORS['guwahati-imphal'].geometry,
+  distanceKm: 485,
+  eta: '11 hrs 30 mins',
+  isCurrentLocation: false,
+};
 
 const defaultRouteResult: RouteCalcResult = {
   sourceState: 'Assam',
@@ -98,129 +113,58 @@ const defaultRouteResult: RouteCalcResult = {
   isAlternative: false,
 };
 
-const PROTECTED_VIEWS: AppView[] = [
-  'dashboard',
-  'route-opt',
-  'tracking',
-  'risks',
-  'weather',
-  'accessibility',
-  'northeast-map',
-  'arka-assistant',
-  'emergency',
-  'analytics',
-  'admin',
-];
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [activeView, setActiveViewState] = useState<AppView>('landing');
+  const [activeView, setActiveView] = useState<AppView>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string; phone?: string; lastLogin?: string; role: string } | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [emergencyMode, setEmergencyMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [currentRouteResult, setCurrentRouteResult] = useState<RouteCalcResult>(defaultRouteResult);
+  const [activeRoute, setActiveRoute] = useState<ActiveRoute>(defaultActiveRoute);
 
   const t = (key: string): string => {
     const dict = TRANSLATIONS[language] || TRANSLATIONS['en'];
     return dict[key] || TRANSLATIONS['en'][key] || key;
   };
 
-  const checkSession = async () => {
-    try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      const data = await res.json();
-      if (data.authenticated && data.user) {
-        setIsAuthenticated(true);
-        setUser(data.user);
-        return;
-      }
-    } catch (e) {
-      // Ignore
-    }
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        const data = await res.json();
-
-        const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-        const requestedView = urlParams?.get('view') as AppView | null;
-
-        if (data.authenticated && data.user) {
-          setIsAuthenticated(true);
-          setUser(data.user);
-
-          if (requestedView) {
-            if (requestedView === 'admin' && data.user.role !== 'admin') {
-              setActiveViewState('dashboard');
-            } else {
-              setActiveViewState(requestedView);
-            }
-          } else {
-            setActiveViewState('dashboard');
-          }
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-
-          if (requestedView === 'login' || requestedView === 'landing' || requestedView === 'help') {
-            setActiveViewState(requestedView);
-          } else if (requestedView) {
-            setAuthMessage('Please login to access the requested view.');
-            setActiveViewState('login');
-          }
-        }
-      } catch (e) {
-        setIsAuthenticated(false);
-        setUser(null);
-      }
+  const setRouteByCities = (
+    source: string,
+    destination: string,
+    isCurrentLocation: boolean = false,
+    customCoords?: [number, number]
+  ) => {
+    const resolved = resolveRouteGeometry(source, destination, customCoords);
+    const newRoute: ActiveRoute = {
+      id: `${source.toLowerCase().replace(/\s+/g, '-')}-${destination.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+      source: isCurrentLocation ? 'Current Location' : source,
+      destination,
+      sourceCoords: resolved.geometry[0] || [26.1445, 91.7362],
+      destCoords: resolved.geometry[resolved.geometry.length - 1] || [24.8170, 93.9368],
+      geometry: resolved.geometry,
+      distanceKm: resolved.distanceKm,
+      eta: resolved.eta,
+      isCurrentLocation,
     };
-
-    initAuth();
-  }, []);
-
-  const setActiveView = (view: AppView) => {
-    if (!isAuthenticated && PROTECTED_VIEWS.includes(view)) {
-      setAuthMessage('Authentication required: Please log in to access this portal.');
-      setActiveViewState('login');
-      return;
-    }
-
-    if (view === 'admin' && user?.role !== 'admin') {
-      setAuthMessage('Access Denied: Administrator role required to access the Admin Dashboard.');
-      setActiveViewState('dashboard');
-      return;
-    }
-
-    setAuthMessage(null);
-    setActiveViewState(view);
+    setActiveRoute(newRoute);
   };
 
-  const login = (userData: UserProfile) => {
+  const login = (identifier: string) => {
     setIsAuthenticated(true);
-    setUser(userData);
-    setAuthMessage(null);
-    setActiveViewState('dashboard');
+    setUser({
+      name: identifier.includes('@') ? identifier.split('@')[0] : 'Logistics Officer',
+      email: identifier.includes('@') ? identifier : `${identifier}@arka-ne.gov.in`,
+      role: 'Fleet Coordinator',
+    });
+    setActiveView('dashboard');
   };
 
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch (e) {
-      // Ignore
-    }
+  const logout = () => {
     setIsAuthenticated(false);
     setUser(null);
-    setAuthMessage('You have logged out successfully.');
-    setActiveViewState('login');
+    setActiveView('landing');
     setEmergencyMode(false);
   };
 
@@ -246,13 +190,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const isHillRoute = ['Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'].includes(destState) ||
                         ['Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Arunachal Pradesh', 'Sikkim'].includes(sourceState);
 
-    let distance = 485;
-    if (sourceCity === 'Guwahati' && destCity === 'Imphal') distance = 485;
-    else if (sourceCity === 'Guwahati' && destCity === 'Silchar') distance = 325;
-    else if (sourceCity === 'Guwahati' && destCity === 'Shillong') distance = 98;
-    else if (sourceCity === 'Guwahati' && destCity === 'Dibrugarh') distance = 445;
-    else if (sourceCity === 'Shillong' && destCity === 'Silchar') distance = 215;
-    else distance = Math.max(75, Math.floor(Math.abs(sourceCity.length - destCity.length) * 45 + 220));
+    const resolved = resolveRouteGeometry(sourceCity, destCity);
+    const distance = resolved.distanceKm || 485;
 
     const speed = isHillRoute ? selectedVehicle.speedFactor * 42 : selectedVehicle.speedFactor * 55;
     const totalHours = distance / speed;
@@ -292,6 +231,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reasoning: `ARKA selected this route because it has lower traffic, lower risk and better accessibility for ${selectedVehicle.name}. Hill grade stability has been verified.`,
       isAlternative: false,
     });
+
+    // Update authoritative activeRoute geometry
+    setActiveRoute({
+      id: `${sourceCity.toLowerCase()}-${destCity.toLowerCase()}`,
+      source: sourceCity,
+      destination: destCity,
+      sourceCoords: resolved.geometry[0] || [26.1445, 91.7362],
+      destCoords: resolved.geometry[resolved.geometry.length - 1] || [24.8170, 93.9368],
+      geometry: resolved.geometry,
+      distanceKm: distance,
+      eta: etaStr,
+      isCurrentLocation: false,
+    });
   };
 
   return (
@@ -312,10 +264,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         mobileMenuOpen,
         setMobileMenuOpen,
         currentRouteResult,
+        activeRoute,
+        setActiveRoute,
+        setRouteByCities,
         calculateRoute,
-        checkSession,
-        authMessage,
-        setAuthMessage,
         t,
       }}
     >

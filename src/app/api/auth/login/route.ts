@@ -7,6 +7,9 @@ import {
 } from '@/lib/db';
 import { signSessionToken, AUTH_COOKIE_NAME } from '@/lib/auth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -35,7 +38,8 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           message:
-            'Database connection error. Please verify MONGODB_URI or DATABASE_URL in your Vercel project environment variables.',
+            dbErr?.message ||
+            'Database connection error. Please verify MONGODB_URI in your Vercel project environment variables.',
         },
         { status: 503 }
       );

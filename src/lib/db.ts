@@ -256,17 +256,22 @@ export async function findUserByIdentifier(identifier: string): Promise<UserReco
           lastLogin: (doc as any).lastLogin ? (doc as any).lastLogin.toISOString() : null,
         };
       }
+
+      if (isProd) {
+        return null;
+      }
+    } else if (isProd) {
+      throw new Error('Database connection failed: MongoDB is not connected.');
     }
   } catch (err: any) {
     console.error('[Database Error] Failed to lookup user in MongoDB:', err.message);
     if (isProd) {
-      throw new Error(
-        `Database lookup failed: ${err?.message || 'Unable to connect to MongoDB'}`
-      );
+      throw new Error(err?.message || 'Unable to connect to MongoDB');
     }
   }
 
   // 2. Development-only fallback
+  if (isProd) return null;
   const local = readLocalUsers();
   const found = local.find(
     (u) =>

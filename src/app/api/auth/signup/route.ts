@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { findUserByIdentifier, createUser, recordActivity, UserRole } from '@/lib/db';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -67,7 +70,8 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           message:
-            'Database connection error. Please verify MONGODB_URI or DATABASE_URL in your Vercel project environment variables.',
+            dbErr?.message ||
+            'Database connection error. Please verify MONGODB_URI in your Vercel project environment variables.',
         },
         { status: 503 }
       );
@@ -105,6 +109,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           message:
+            createErr?.message ||
             'Failed to save account to database. Please check your database connection or try again.',
         },
         { status: 503 }

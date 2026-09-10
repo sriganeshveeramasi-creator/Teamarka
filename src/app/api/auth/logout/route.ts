@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { recordActivity } from '@/lib/db';
 import { AUTH_COOKIE_NAME, verifySessionToken } from '@/lib/auth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;

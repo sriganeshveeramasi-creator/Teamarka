@@ -135,6 +135,14 @@ export function classifyMongoError(err: unknown): string {
   }
 
   if (
+    msg.includes('ECONNREFUSED 127.0.0.1') ||
+    msg.includes('ECONNREFUSED localhost') ||
+    msg.includes('127.0.0.1:27017')
+  ) {
+    return 'Database connection refused: The application attempted to connect to local MongoDB at 127.0.0.1:27017, but no local MongoDB server is running. Please update MONGODB_URI to your MongoDB Atlas connection string (mongodb+srv://...).';
+  }
+
+  if (
     msg.includes('MongoServerSelectionError') ||
     msg.includes('ETIMEDOUT') ||
     msg.includes('ENOTFOUND') ||
@@ -148,8 +156,8 @@ export function classifyMongoError(err: unknown): string {
     return 'Invalid MONGODB_URI format. The connection string must start with "mongodb://" or "mongodb+srv://".';
   }
 
-  if (msg.includes('is not set') || msg.includes('missing in Vercel')) {
-    return 'MONGODB_URI environment variable is missing in Vercel project settings.';
+  if (msg.includes('is not set') || msg.includes('missing') || msg.includes('MONGODB_URI environment variable is missing')) {
+    return 'MONGODB_URI environment variable is missing. Please set MONGODB_URI in your Vercel Project Settings or .env.local file.';
   }
 
   return `Database connection error: ${msg}`;
@@ -179,30 +187,31 @@ export function isDatabaseConfigured(): boolean {
 /**
  * Connect to MongoDB with connection caching for Next.js serverless runtimes.
  * Automatically handles cold starts, reconnects, special characters in passwords,
- * and robust timeout handling.
+ * and robust timeout handling. Never silently falls back to localhost.
  */
 export async function connectToDatabase(): Promise<typeof mongoose | null> {
   const rawUri = getMongoUri();
   const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
   if (!rawUri) {
-    if (isProd) {
-      const errorMsg =
-        'Database connection failed: MONGODB_URI is not configured in your Vercel Environment Variables. Please set MONGODB_URI in Vercel Project Settings.';
-      console.error(`[Database Error] ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-    // In local development without MONGODB_URI configured, return null to use local fallback instantly
-    return null;
+    const errorMsg =
+      'MONGODB_URI environment variable is missing. Please configure MONGODB_URI in your Vercel Project Settings or .env.local file.';
+    console.error(`[Database Error] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   const { uri: cleanUri, error: parseError } = normalizeMongoUri(rawUri);
   if (parseError) {
     console.error(`[Database Error] ${parseError}`);
-    if (isProd) {
-      throw new Error(parseError);
-    }
-    return null;
+    throw new Error(parseError);
+  }
+
+  // Explicitly prevent connecting to localhost / 127.0.0.1 in production
+  if (isProd && (cleanUri.includes('localhost') || cleanUri.includes('127.0.0.1'))) {
+    const errorMsg =
+      'Invalid production database configuration: MONGODB_URI is pointing to localhost / 127.0.0.1. A remote MongoDB Atlas connection string (mongodb+srv://...) must be configured in Vercel.';
+    console.error(`[Database Error] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   // 1. Return existing connected instance immediately

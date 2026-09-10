@@ -21,12 +21,17 @@ mongoose.set('bufferCommands', false);
 
 /**
  * Clean, strip surrounding quotes, and safely encode username/password in MongoDB URI.
- * Handles unencoded special characters in the database password (such as @, #, %, +, :, /)
- * without corrupting the connection string.
+ * Handles unencoded special characters in the database password (such as @, #, %, +, :, /),
+ * strips accidental '<' and '>' template placeholders, and ensures authSource=admin for Atlas clusters.
  */
-export function normalizeMongoUri(raw: string): { uri: string; error: string | null } {
+export function normalizeMongoUri(raw: string): {
+  uri: string;
+  error: string | null;
+  username: string | null;
+  hosts: string | null;
+} {
   if (!raw || !raw.trim()) {
-    return { uri: '', error: 'MONGODB_URI environment variable is not set.' };
+    return { uri: '', error: 'MONGODB_URI environment variable is not set.', username: null, hosts: null };
   }
 
   let uri = raw.trim();
@@ -45,6 +50,8 @@ export function normalizeMongoUri(raw: string): { uri: string; error: string | n
       uri,
       error:
         'Invalid protocol: MongoDB connection string must start with "mongodb://" or "mongodb+srv://".',
+      username: null,
+      hosts: null,
     };
   }
 
@@ -66,13 +73,13 @@ export function normalizeMongoUri(raw: string): { uri: string; error: string | n
   }
 
   const authority = rest.slice(0, authorityEnd);
-  const pathAndQuery = rest.slice(authorityEnd);
+  let pathAndQuery = rest.slice(authorityEnd);
 
   // Find the LAST '@' in the authority part (which separates user:pass from hosts)
   const lastAt = authority.lastIndexOf('@');
   if (lastAt === -1) {
     // No credentials in connection string
-    return { uri: scheme + authority + pathAndQuery, error: null };
+    return { uri: scheme + authority + pathAndQuery, error: null, username: null, hosts: authority };
   }
 
   const userinfo = authority.slice(0, lastAt);
@@ -87,25 +94,43 @@ export function normalizeMongoUri(raw: string): { uri: string; error: string | n
     password = userinfo.slice(colonIdx + 1);
   }
 
-  // URL-decode first if already partially encoded, then safely encode
-  let safeUser = username;
-  let safePass = password;
-  try {
-    safeUser = encodeURIComponent(decodeURIComponent(username));
-  } catch (e) {
-    safeUser = encodeURIComponent(username);
+  // Strip accidental '<' and '>' template placeholders from Atlas UI copy-paste
+  if (username.startsWith('<') && username.endsWith('>')) {
+    username = username.slice(1, -1);
+  }
+  if (password.startsWith('<') && password.endsWith('>')) {
+    password = password.slice(1, -1);
   }
 
-  try {
-    safePass = encodeURIComponent(decodeURIComponent(password));
-  } catch (e) {
-    safePass = encodeURIComponent(password);
+  const encodePart = (str: string): string => {
+    try {
+      const decoded = decodeURIComponent(str);
+      return encodeURIComponent(decoded).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+    } catch {
+      return encodeURIComponent(str).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+    }
+  };
+
+  const safeUser = encodePart(username);
+  const safePass = encodePart(password);
+
+  // Ensure authSource=admin is present in query string for Atlas clusters if not already specified
+  if (isSrv) {
+    if (!pathAndQuery.includes('authSource=')) {
+      if (pathAndQuery.includes('?')) {
+        pathAndQuery += '&authSource=admin';
+      } else if (pathAndQuery.startsWith('/')) {
+        pathAndQuery += '?authSource=admin';
+      } else {
+        pathAndQuery = '/team_arka?authSource=admin';
+      }
+    }
   }
 
   const authString = safePass ? `${safeUser}:${safePass}@` : `${safeUser}@`;
   const cleanUri = `${scheme}${authString}${hosts}${pathAndQuery}`;
 
-  return { uri: cleanUri, error: null };
+  return { uri: cleanUri, error: null, username, hosts };
 }
 
 /**
@@ -164,17 +189,23 @@ export function classifyMongoError(err: unknown): string {
 }
 
 /**
- * Retrieve the active MongoDB URI from available environment variables.
- * Prioritizes MONGODB_URI, then DATABASE_URL, MONGODB_URL, MONGO_URL.
+ * Retrieve the active MongoDB URI.
+ * Strictly uses process.env.MONGODB_URI for production consistency.
  */
 export function getMongoUri(): string {
-  const raw =
-    process.env.MONGODB_URI ||
-    process.env.DATABASE_URL ||
-    process.env.MONGODB_URL ||
-    process.env.MONGO_URL ||
-    '';
+  const raw = process.env.MONGODB_URI || '';
   return raw.trim();
+}
+
+/**
+ * Safely extract the configured database username from MONGODB_URI.
+ * Never exposes credentials or password.
+ */
+export function getDatabaseUsername(): string | null {
+  const raw = getMongoUri();
+  if (!raw) return null;
+  const { username } = normalizeMongoUri(raw);
+  return username;
 }
 
 /**
@@ -195,7 +226,7 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
 
   if (!rawUri) {
     const errorMsg =
-      'MONGODB_URI environment variable is missing. Please configure MONGODB_URI in your Vercel Project Settings or .env.local file.';
+      'MONGODB_URI environment variable is missing. Please configure MONGODB_URI in your Vercel Project Settings (Environment Variables > Production).';
     console.error(`[Database Error] ${errorMsg}`);
     throw new Error(errorMsg);
   }
@@ -255,6 +286,7 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
       dbName: 'team_arka',
+      authSource: 'admin',
     };
 
     const masked = maskMongoUri(cleanUri);
